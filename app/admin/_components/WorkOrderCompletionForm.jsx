@@ -3,6 +3,10 @@
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import messageToast from './message'
+import {
+	CUSTOMER_SOURCE_OPTIONS,
+	normalizeCustomerSource,
+} from '@/lib/customer-sources'
 import Button from './ui/Button'
 import Spin from './ui/Spin'
 
@@ -17,7 +21,7 @@ const serviceOptions = [
 	'Sprzedaż opony dojazdowej',
 ]
 
-const sources = ['Google maps', 'Site', 'Business card', 'Search system', 'Other']
+const sources = CUSTOMER_SOURCE_OPTIONS
 
 const serviceAliases = {
 	'Wymiana kół': ['wymiana kol', 'sezonowa wymiana kol', 'zmiana kol'],
@@ -83,14 +87,7 @@ function inferServiceNames(value) {
 }
 
 function normalizeSource(value) {
-	const raw = String(value || '').trim()
-	const normalized = normalizeSearchText(raw)
-	if (!normalized) return ''
-	if (normalized.includes('google')) return 'Google maps'
-	if (normalized.includes('site') || normalized.includes('strona') || normalized === 'lead') return 'Site'
-	if (normalized.includes('business') || normalized.includes('wizytow')) return 'Business card'
-	if (normalized.includes('search') || normalized.includes('wyszukiw')) return 'Search system'
-	return sources.includes(raw) ? raw : 'Other'
+	return normalizeCustomerSource(value)
 }
 
 export default function WorkOrderCompletionForm() {
@@ -204,6 +201,10 @@ export default function WorkOrderCompletionForm() {
 	async function submit(event) {
 		event.preventDefault()
 		if (!id) return
+		if (!form.source) {
+			setError('Wybierz źródło klienta.')
+			return
+		}
 
 		setSaving(true)
 		setError('')
@@ -300,8 +301,9 @@ export default function WorkOrderCompletionForm() {
 								<option value='Kobieta'>Kobieta</option>
 							</select>
 						</Field>
-						<Field label='Źródło'>
+						<Field label='Źródło' required>
 							<select
+								required
 								value={form.source}
 								onChange={event => update('source', event.target.value)}
 								className='opx-input'

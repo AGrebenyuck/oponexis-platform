@@ -5,9 +5,13 @@ import {
 	parseYmdToUtcDate,
 } from '@/lib/date'
 import { upsertCustomerFromContact } from '@/lib/customer'
+import { normalizeCustomerSource } from '@/lib/customer-sources'
+import { canonicalSourceFromAttribution, normalizeFirstTouch } from '@/lib/attribution'
 import { db } from '@/lib/prisma'
+import { sendFormCompletedSms } from '@/lib/sms/formSms'
 import {
 	markSmsFormCompletedByLead,
+	markSmsFormCompletedById,
 	markSmsFormCompletedByPhone,
 	sendWorkOrderToTelegram,
 	updateIncompleteCompletionMessage,
@@ -19,7 +23,7 @@ async function latestSmsTermin({ leadId, phone }) {
 	if (!leadId && !phone) return null
 	return db.smsFormLog.findFirst({
 		where: {
-			status: 'pending',
+			status: { in: ['pending', 'reminded'] },
 			OR: [leadId ? { leadId } : null, phone ? { phone } : null].filter(Boolean),
 		},
 		orderBy: [{ visitDate: 'desc' }, { sentAt: 'desc' }, { id: 'desc' }],
@@ -77,6 +81,10 @@ export async function POST(req) {
 			wantsInvoice,
 			invoiceNip,
 			invoiceEmail,
+			source: rawSource,
+			attribution: rawAttribution,
+			smsFormLogId,
+			smsFormPublicToken,
 		} = body || {}
 
 		if (!name?.trim() || !phone?.trim()) {
@@ -95,6 +103,17 @@ export async function POST(req) {
 		}
 
 		const normalizedPhone = normalizePhone(phone) || phone.trim()
+		const attribution = normalizeFirstTouch(rawAttribution)
+		const source =
+			normalizeCustomerSource(rawSource) ||
+			(attribution ? canonicalSourceFromAttribution(attribution) : '') ||
+			(leadId ? 'Strona internetowa' : '')
+		if (!source) {
+			return jsonCors(
+				{ ok: false, error: 'Prosimy wybrac, skad dowiedziales sie o Oponexis.' },
+				{ status: 400 }
+			)
+		}
 		const fallbackSms = !visitDate || !visitTime
 			? await latestSmsTermin({ leadId: leadId || null, phone: normalizedPhone })
 			: null
@@ -113,7 +132,7 @@ export async function POST(req) {
 		const customer = await upsertCustomerFromContact({
 			phone: normalizedPhone,
 			name,
-			source: leadId ? 'Site' : 'client_form',
+			source,
 		})
 
 		const existingOrder = await findExistingWorkOrder({
@@ -150,7 +169,9 @@ export async function POST(req) {
 			: await db.workOrder.create({ data })
 
 		try {
-			if (workOrder.leadId) {
+			if (smsFormLogId) {
+				await markSmsFormCompletedById(smsFormLogId, smsFormPublicToken)
+			} else if (workOrder.leadId) {
 				await markSmsFormCompletedByLead(workOrder.leadId)
 			} else if (workOrder.phone) {
 				await markSmsFormCompletedByPhone(workOrder.phone, {
@@ -180,6 +201,20 @@ export async function POST(req) {
 		)
 		await updateIncompleteCompletionMessage().catch(error =>
 			console.error('[order client incomplete tracker]', error)
+		)
+		await sendFormCompletedSms({
+			phone: normalizedPhone,
+			name: name.trim(),
+			visitDate: effectiveVisitDate,
+			visitTime: effectiveVisitTime,
+			workOrderId: workOrder.id,
+			profile: process.env.SMSGATE_FORM_PROFILE,
+		}).catch(error =>
+			console.error('[order client confirmation sms]', {
+				event: 'form_completed_sms_failed',
+				workOrderId: workOrder.id,
+				errorType: error?.constructor?.name || 'UnknownError',
+			})
 		)
 
 		return jsonCors({

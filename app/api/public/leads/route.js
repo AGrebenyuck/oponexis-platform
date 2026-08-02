@@ -1,5 +1,10 @@
 import { jsonCors, optionsCors } from '@/lib/cors'
 import { attachCustomerToLead } from '@/lib/customer'
+import {
+	canonicalSourceFromAttribution,
+	firstTouchLeadData,
+	normalizeFirstTouch,
+} from '@/lib/attribution'
 import { db } from '@/lib/prisma'
 import { sendLeadToTelegram } from '@/lib/telegram'
 import { headers } from 'next/headers'
@@ -16,6 +21,7 @@ export async function POST(req) {
 			selectedServiceNames,
 			partnerCode,
 			visitorId,
+			attribution: rawAttribution,
 		} = body || {}
 
 		if (!name?.trim() || !phone?.trim() || !serviceId?.toString().trim()) {
@@ -35,6 +41,8 @@ export async function POST(req) {
 		})
 		if (recent) return jsonCors({ ok: true, throttled: true })
 
+		const attribution = normalizeFirstTouch(rawAttribution)
+		const customerSource = canonicalSourceFromAttribution(attribution)
 		const createdLead = await db.lead.create({
 			data: {
 				name: name.trim(),
@@ -52,9 +60,10 @@ export async function POST(req) {
 				ip,
 				status: 'new',
 				monthKey: new Date().toISOString().slice(0, 7),
+				...firstTouchLeadData(attribution),
 			},
 		})
-		const lead = await attachCustomerToLead(createdLead)
+		const lead = await attachCustomerToLead(createdLead, { source: customerSource })
 
 		if (partnerCode && visitorId) {
 			const day = new Date().toISOString().slice(0, 10)
@@ -71,6 +80,8 @@ export async function POST(req) {
 				services: lead.selectedNames?.length
 					? lead.selectedNames
 					: [lead.serviceName],
+				source: customerSource,
+				attribution,
 			})
 		} catch (error) {
 			console.error('[lead telegram]', error)

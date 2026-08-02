@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { db } from '@/lib/prisma'
 import Button from '../_components/ui/Button'
 import DeleteCampaignButton from './DeleteCampaignButton'
+import SmsGateTechnicalPanel from './SmsGateTechnicalPanel'
 
 function formatDate(value) {
 	if (!value) return '-'
@@ -39,6 +40,8 @@ export default async function SmsCampaignsPage() {
 					Kampanie sezonowe, wysyłka SMS i statusy odbiorców.
 				</p>
 			</div>
+
+			<SmsGateTechnicalPanel />
 
 			<div className='grid gap-3'>
 				{campaigns.map(campaign => {

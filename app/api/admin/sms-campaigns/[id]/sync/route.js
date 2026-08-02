@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
 import { getSmsGateMessageStatus } from '@/lib/sms/smsGateClient'
+import { markRecipientSmsSent } from '@/lib/sms/smsCampaignContacts'
 
 function mapState(state) {
 	if (state === 'DELIVERED') return 'DELIVERED'
@@ -44,6 +45,12 @@ export async function POST(_req, { params }) {
 						error: status === 'FAILED' ? result.reason || 'SMSGate failed' : null,
 					},
 				})
+				if (['QUEUED', 'PROCESSED', 'SENT', 'DELIVERED'].includes(status)) {
+					await markRecipientSmsSent({
+						campaignId: id,
+						recipient,
+					})
+				}
 			} catch (error) {
 				await db.smsCampaignRecipient.update({
 					where: { id: recipient.id },

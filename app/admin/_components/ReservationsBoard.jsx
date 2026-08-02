@@ -39,6 +39,7 @@ export default function ReservationsPage() {
 	const [data, setData] = useState({ workOrders: [], reservations: [] })
 	const [loading, setLoading] = useState(true)
 	const [query, setQuery] = useState('')
+	const [archiveSort, setArchiveSort] = useState('newest')
 	const [selectedOrder, setSelectedOrder] = useState(null)
 	const [page, setPage] = useState(1)
 	const [deletingId, setDeletingId] = useState(null)
@@ -60,9 +61,7 @@ export default function ReservationsPage() {
 
 	const workOrders = useMemo(() => {
 		const needle = query.trim().toLowerCase()
-		if (!needle) return data.workOrders
-
-		return data.workOrders.filter(order =>
+		const filtered = needle ? data.workOrders.filter(order =>
 			[
 				order.name,
 				order.phone,
@@ -75,8 +74,18 @@ export default function ReservationsPage() {
 				.join(' ')
 				.toLowerCase()
 				.includes(needle)
-		)
-	}, [data.workOrders, query])
+		) : data.workOrders
+
+		if (view !== 'past') return filtered
+		return filtered.slice().sort((a, b) => {
+			if (archiveSort === 'oldest') {
+				return new Date(a.visitDate || a.createdAt || 0) - new Date(b.visitDate || b.createdAt || 0)
+			}
+			if (archiveSort === 'name') return String(a.name || '').localeCompare(String(b.name || ''), 'pl')
+			if (archiveSort === 'service') return String(a.service || '').localeCompare(String(b.service || ''), 'pl')
+			return new Date(b.visitDate || b.createdAt || 0) - new Date(a.visitDate || a.createdAt || 0)
+		})
+	}, [archiveSort, data.workOrders, query, view])
 
 	const totalPages = Math.max(1, Math.ceil(workOrders.length / PAGE_SIZE))
 	const currentPage = Math.min(page, totalPages)
@@ -153,15 +162,35 @@ export default function ReservationsPage() {
 				</div>
 			</div>
 
-			<input
-				value={query}
-				onChange={event => {
-					setQuery(event.target.value)
-					setPage(1)
-				}}
-				placeholder='Szukaj po imieniu, telefonie, usłudze, aucie albo adresie'
-				className='opx-input'
-			/>
+			<div className={`grid gap-3 ${view === 'past' ? 'md:grid-cols-[1fr_240px]' : ''}`}>
+				<input
+					value={query}
+					onChange={event => {
+						setQuery(event.target.value)
+						setPage(1)
+					}}
+					placeholder='Szukaj po imieniu, telefonie, usłudze, aucie albo adresie'
+					className='opx-input'
+				/>
+				{view === 'past' ? (
+					<label className='space-y-1 text-sm font-bold text-white'>
+						<span>Sortowanie archiwum</span>
+						<select
+							value={archiveSort}
+							onChange={event => {
+								setArchiveSort(event.target.value)
+								setPage(1)
+							}}
+							className='opx-input'
+						>
+							<option value='newest'>Najnowsze terminy</option>
+							<option value='oldest'>Najstarsze terminy</option>
+							<option value='name'>Klient A–Z</option>
+							<option value='service'>Usługa A–Z</option>
+						</select>
+					</label>
+				) : null}
+			</div>
 
 			{loading ? (
 				<div className='py-10 text-center'>

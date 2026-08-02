@@ -26,6 +26,13 @@ export default async function CustomerProfilePage({ params }) {
 				orderBy: [{ year: 'desc' }, { updatedAt: 'desc' }],
 				take: 12,
 			},
+			smsContactEvents: {
+				orderBy: { occurredAt: 'desc' },
+				take: 50,
+				include: {
+					campaign: { select: { id: true, name: true } },
+				},
+			},
 		},
 	})
 

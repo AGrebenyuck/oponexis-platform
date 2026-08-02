@@ -157,65 +157,61 @@ export default function WorkOrderEditInner() {
 
 	if (!id) {
 		return (
-			<div className='min-h-screen flex items-center justify-center bg-slate-900 text-slate-100 px-4'>
-				<div className='max-w-md text-center'>
-					<h1 className='text-lg font-semibold mb-2'>Brak ID zlecenia</h1>
-					<p className='text-sm text-slate-400'>
-						Adres powinien zawierac parametr <code>?id=...</code>.
+			<div className='opx-panel mx-auto max-w-xl rounded-md p-5 text-center'>
+					<h1 className='text-xl font-bold text-[#132c43]'>Brak ID zlecenia</h1>
+					<p className='mt-2 text-sm text-[#5f7487]'>
+						Adres powinien zawierać parametr <code>?id=...</code>.
 					</p>
-				</div>
 			</div>
 		)
 	}
 
 	if (loading) {
 		return (
-			<div className='min-h-screen flex items-center justify-center bg-slate-900 text-slate-100'>
-				<div className='max-w-md text-center space-y-2'>
-					<p className='text-sm text-slate-300'>Ladowanie zlecenia...</p>
-					<p className='text-xs text-slate-500'>ID: {id}</p>
-				</div>
+			<div className='opx-panel mx-auto max-w-xl rounded-md p-5 text-center'>
+					<p className='text-sm font-semibold text-[#132c43]'>Ładowanie zlecenia…</p>
+					<p className='mt-1 text-xs text-[#5f7487]'>ID: {id}</p>
 			</div>
 		)
 	}
 
 	if (error && !form.name && !form.phone) {
 		return (
-			<div className='min-h-screen flex items-center justify-center bg-slate-900 text-slate-100 px-4'>
-				<div className='w-full max-w-md bg-slate-800/80 border border-slate-700 rounded-2xl p-6 shadow-xl text-center'>
-					<h1 className='text-lg font-semibold mb-2'>
-						Nie udalo sie zaladowac zlecenia
+			<div className='opx-panel mx-auto max-w-xl rounded-md p-5 text-center'>
+					<h1 className='text-xl font-bold text-[#132c43]'>
+						Nie udało się załadować zlecenia
 					</h1>
-					<p className='text-sm text-red-300 mb-3'>{error}</p>
-					<p className='text-xs text-slate-500 mb-4'>ID: {id}</p>
+					<p className='mt-2 text-sm text-red-600'>{error}</p>
+					<p className='mt-1 text-xs text-[#5f7487]'>ID: {id}</p>
 					<button
 						type='button'
 						onClick={() => window.location.reload()}
-						className='rounded-lg bg-orange-500 hover:bg-orange-600 text-sm font-medium px-4 py-2'
+						className='opx-btn-primary mt-4 px-4 py-2 text-sm font-bold'
 					>
-						Sprobuj ponownie
+						Spróbuj ponownie
 					</button>
-				</div>
 			</div>
 		)
 	}
 
 	return (
-		<div className='min-h-screen flex items-center justify-center bg-slate-900 text-slate-100 px-4 py-8'>
-			<div className='w-full max-w-xl bg-slate-800/80 border border-slate-700 rounded-2xl p-6 shadow-xl'>
-				<div className='flex items-center justify-between mb-4'>
-					<h1 className='text-lg font-semibold'>Edytuj zlecenie</h1>
+		<section className='mx-auto max-w-3xl space-y-5'>
+			<div className='flex flex-wrap items-end justify-between gap-3'>
+				<div>
+					<h1 className='text-2xl font-semibold text-white'>Edytuj zlecenie #{id}</h1>
+					<p className='text-sm text-[#d7e4ef]'>Dane klienta, pojazdu i terminu wizyty.</p>
+				</div>
 					<button
 						type='button'
-						onClick={() => router.push('/admin/calendar')}
-						className='text-xs text-slate-400 hover:text-slate-200'
+						onClick={() => router.push('/admin/events')}
+						className='rounded-md border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/15'
 					>
-						Wroc
+						Wróć do zleceń
 					</button>
-				</div>
+			</div>
 
-				<form onSubmit={handleSubmit} className='space-y-4'>
-					<Field label='Imie' name='name' value={form.name} onChange={handleChange} />
+				<form onSubmit={handleSubmit} className='opx-panel space-y-4 rounded-md p-4 sm:p-5'>
+					<Field label='Imię' name='name' value={form.name} onChange={handleChange} />
 					<Field
 						label='Telefon'
 						name='phone'
@@ -223,7 +219,7 @@ export default function WorkOrderEditInner() {
 						onChange={handleChange}
 					/>
 					<Field
-						label='Usluga'
+						label='Usługa'
 						name='service'
 						value={form.service}
 						onChange={handleChange}
@@ -290,13 +286,13 @@ export default function WorkOrderEditInner() {
 						/>
 					</div>
 
-					<label className='flex items-center gap-2 text-xs text-slate-300'>
+					<label className='flex items-center gap-2 text-sm font-bold text-[#132c43]'>
 						<input
 							type='checkbox'
 							name='wantsInvoice'
 							checked={form.wantsInvoice}
 							onChange={handleChange}
-							className='h-4 w-4 rounded border-slate-600 bg-slate-800'
+							className='h-4 w-4 accent-[#fd6d02]'
 						/>
 						Faktura
 					</label>
@@ -319,57 +315,49 @@ export default function WorkOrderEditInner() {
 					) : null}
 
 					<div className='space-y-1'>
-						<label className='text-xs text-slate-300'>Uwagi</label>
+						<label className='text-sm font-bold text-[#132c43]'>Uwagi</label>
 						<textarea
 							name='notes'
 							value={form.notes}
 							onChange={handleChange}
 							rows={3}
-							className='w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 resize-none'
+							className='opx-input resize-none'
 						/>
 					</div>
 
-					{error && <p className='text-xs text-red-400'>{error}</p>}
-					{success && <p className='text-xs text-emerald-400'>{success}</p>}
+					{error ? (
+						<p className='rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700'>{error}</p>
+					) : null}
+					{success ? (
+						<p className='rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700'>{success}</p>
+					) : null}
 
-					<button
-						type='submit'
-						disabled={saving}
-						className='w-full inline-flex items-center justify-center rounded-lg bg-orange-500 hover:bg-orange-600 text-sm font-medium py-2.5 disabled:opacity-60'
-					>
-						{saving ? 'Zapisywanie...' : 'Zapisz zmiany'}
-					</button>
-					<button
-						type='button'
-						onClick={() => router.push(`/admin/work-order/complete?id=${id}`)}
-						className='w-full inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-900 text-sm font-medium py-2.5 text-slate-100 hover:border-orange-400'
-					>
-						Otwórz formularz wykonania
-					</button>
-					<button
-						type='button'
-						onClick={handleCloseOrder}
-						disabled={closing}
-						className='w-full inline-flex items-center justify-center rounded-lg border border-red-500/50 bg-red-950/40 text-sm font-medium py-2.5 text-red-100 hover:border-red-400 disabled:opacity-60'
-					>
-						{closing ? 'Zamykanie...' : 'Anuluj / ukryj zlecenie'}
+					<div className='grid gap-2 sm:grid-cols-2'>
+						<button type='submit' disabled={saving} className='opx-btn-primary px-4 py-2.5 text-sm font-bold disabled:opacity-60'>
+							{saving ? 'Zapisywanie…' : 'Zapisz zmiany'}
+						</button>
+						<button type='button' onClick={() => router.push(`/admin/work-order/complete?id=${id}`)} className='opx-btn-secondary px-4 py-2.5 text-sm font-bold'>
+							Otwórz formularz wykonania
+						</button>
+					</div>
+					<button type='button' onClick={handleCloseOrder} disabled={closing} className='w-full rounded-md border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 disabled:opacity-60'>
+						{closing ? 'Zamykanie…' : 'Anuluj / ukryj zlecenie'}
 					</button>
 				</form>
-			</div>
-		</div>
+		</section>
 	)
 }
 
 function Field({ label, name, value, onChange, type = 'text' }) {
 	return (
 		<div className='space-y-1'>
-			<label className='text-xs text-slate-300'>{label}</label>
+			<label className='text-sm font-bold text-[#132c43]'>{label}</label>
 			<input
 				type={type}
 				name={name}
 				value={value}
 				onChange={onChange}
-				className='w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100'
+				className='opx-input'
 			/>
 		</div>
 	)

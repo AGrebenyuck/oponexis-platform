@@ -1,5 +1,9 @@
 import { db } from '@/lib/prisma'
 import { getCompletionFormQuestionConfig } from '@/lib/completion-form-questions'
+import {
+	CUSTOMER_SOURCE_OPTIONS,
+	normalizeCustomerSource,
+} from '@/lib/customer-sources'
 import PublicCompletionForm from './PublicCompletionForm'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +19,7 @@ const serviceOptions = [
 	'Sprzedaż opony dojazdowej',
 ]
 
-const sources = ['Google maps', 'Site', 'Business card', 'Search system', 'Other']
+const sources = CUSTOMER_SOURCE_OPTIONS
 
 const serviceAliases = {
 	'Wymiana kół': ['wymiana kol', 'sezonowa wymiana kol', 'zmiana kol'],
@@ -81,15 +85,11 @@ function questionOptions(questions, key, fallback = []) {
 
 function normalizeSource(value, availableSources = sources) {
 	const raw = String(value || '').trim()
-	const normalized = normalizeSearchText(raw)
-	if (!normalized) return ''
-	const exact = availableSources.find(source => normalizeSearchText(source) === normalized)
+	if (!raw) return ''
+	const normalized = normalizeCustomerSource(raw)
+	const exact = availableSources.find(source => normalizeSearchText(source) === normalizeSearchText(normalized))
 	if (exact) return exact
-	if (normalized.includes('google')) return 'Google maps'
-	if (normalized.includes('site') || normalized.includes('strona') || normalized === 'lead') return 'Site'
-	if (normalized.includes('business') || normalized.includes('wizytow')) return 'Business card'
-	if (normalized.includes('search') || normalized.includes('wyszukiw')) return 'Search system'
-	return 'Other'
+	return normalized
 }
 
 function dateInput(value) {
@@ -143,8 +143,8 @@ export default async function PublicWorkOrderCompletionPage({ searchParams }) {
 	const selectedSource =
 		normalizeSource(completion?.source, configuredSourceOptions) ||
 		normalizeSource(order.customer?.source, configuredSourceOptions) ||
-		(order.leadId ? 'Site' : '')
-	const sourceOptions = uniqueOptions(configuredSourceOptions, selectedSource)
+		(order.leadId ? 'Strona internetowa' : '')
+	const sourceOptions = uniqueOptions(configuredSourceOptions, sources, selectedSource)
 	const car =
 		completion?.car ||
 		[order.carModel, order.regNumber].filter(Boolean).join(' / ')

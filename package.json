@@ -1,13 +1,15 @@
 {
-  "name": "oponx-crm",
+  "name": "oponexis-platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "eslint"
+		"lint": "eslint",
+		"import:finance-expenses": "node --env-file=.env scripts/import-finance-expenses.mjs",
+		"cron:sms-forms": "node --env-file=.env scripts/run-sms-form-reminders.mjs"
   },
   "dependencies": {
     "@floating-ui/react-dom": "^2.1.8",

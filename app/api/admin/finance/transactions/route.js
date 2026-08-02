@@ -1,0 +1,39 @@
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { db } from '@/lib/prisma'
+
+const transactionSchema = z.object({
+	type: z.enum(['INCOME', 'EXPENSE']),
+	status: z.enum(['PAID', 'PLANNED']).default('PAID'),
+	category: z.string().trim().min(2).max(80),
+	amount: z.coerce.number().positive().max(1_000_000),
+	occurredAt: z.string().date(),
+	description: z.string().trim().max(500).optional().or(z.literal('')),
+	counterparty: z.string().trim().max(120).optional().or(z.literal('')),
+})
+
+export async function POST(request) {
+	try {
+		const input = transactionSchema.parse(await request.json())
+		const transaction = await db.financeTransaction.create({
+			data: {
+				type: input.type,
+				status: input.status,
+				category: input.category,
+				amount: input.amount,
+				occurredAt: new Date(`${input.occurredAt}T12:00:00.000Z`),
+				description: input.description || null,
+				counterparty: input.counterparty || null,
+			},
+		})
+
+		return NextResponse.json({ ok: true, data: transaction }, { status: 201 })
+	} catch (error) {
+		const isValidationError = error instanceof z.ZodError
+		const message = isValidationError
+			? 'Sprawdź kategorię, kwotę i datę.'
+			: 'Nie udało się zapisać transakcji.'
+		if (!isValidationError) console.error('[finance transactions] create failed', error)
+		return NextResponse.json({ ok: false, error: message }, { status: isValidationError ? 400 : 500 })
+	}
+}

@@ -12,8 +12,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Oponexis CRM",
-  description: "Panel administracyjny Oponexis",
+	title: "Oponexis Platform",
+	icons: {
+		icon: 'https://www.oponexis.pl/siteIcon/favicon.ico',
+		apple: 'https://www.oponexis.pl/siteIcon/icon.svg',
+	},
+  description: "Platforma operacyjna Oponexis",
 };
 
 export default function RootLayout({ children }) {

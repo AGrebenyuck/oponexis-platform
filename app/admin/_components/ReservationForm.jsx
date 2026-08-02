@@ -48,13 +48,11 @@ export default function ReservationForm({ initialServices = [] }) {
 			{
 				id: service.id,
 				name: service.name,
-				price: service.price,
 				parentId: null,
 			},
 			...(service.additionalServices || []).map(additional => ({
 				id: additional.id,
 				name: `${service.name} + ${additional.name}`,
-				price: additional.price,
 				parentId: service.id,
 			})),
 		])
@@ -189,9 +187,6 @@ export default function ReservationForm({ initialServices = [] }) {
 										}`}
 									>
 										<span className='block font-semibold'>{option.name}</span>
-										{typeof option.price === 'number' ? (
-											<span className='text-xs text-[#5f7487]'>{option.price} zł</span>
-										) : null}
 									</button>
 								)
 							})

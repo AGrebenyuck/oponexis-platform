@@ -5,8 +5,8 @@ export default function Page() {
 	return (
 		<Suspense
 			fallback={
-				<div className='min-h-screen flex items-center justify-center bg-slate-900 text-slate-100'>
-					<p className='text-sm text-slate-300'>Ladowanie zlecenia...</p>
+				<div className='opx-panel mx-auto max-w-xl rounded-md p-5 text-center'>
+					<p className='text-sm font-semibold text-[#132c43]'>Ładowanie zlecenia…</p>
 				</div>
 			}
 		>

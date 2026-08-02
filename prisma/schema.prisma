@@ -26,6 +26,22 @@ model User {
   sources      UserSource[]
 }
 
+model PlatformCredential {
+  role           String   @id
+  passwordHash   String
+  passwordSalt   String
+  sessionVersion Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PlatformAuthSetting {
+  id          String   @id @default("platform")
+  sessionDays Int      @default(30)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Partner {
   id            String   @id @default(cuid())
   name          String
@@ -72,6 +88,19 @@ model Lead {
 
   monthKey String?
 
+  firstTouchSource      String?
+  firstTouchMedium      String?
+  firstTouchCampaign    String?
+  firstTouchContent     String?
+  firstTouchTerm        String?
+  firstTouchReferrer    String?
+  firstTouchLandingPage String?
+  firstTouchGclid       String?
+  firstTouchFbclid      String?
+  firstTouchTtclid      String?
+  firstTouchMsclkid     String?
+  firstTouchAt          DateTime?
+
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id])
 
@@ -90,14 +119,40 @@ model Customer {
   notes  String?
   isTest Boolean @default(false)
 
-  leads          Lead[]
-  workOrders     WorkOrder[]
-  completions    WorkOrderCompletion[]
-  seasonStatuses CustomerSeasonStatus[]
-  smsRecipients  SmsCampaignRecipient[]
+  leads            Lead[]
+  workOrders       WorkOrder[]
+  completions      WorkOrderCompletion[]
+  seasonStatuses   CustomerSeasonStatus[]
+  smsRecipients    SmsCampaignRecipient[]
+  smsContactEvents SmsContactEvent[]
+  mobileCallEvents MobileCallEvent[]
+  smsReservationConfirmations SmsReservationConfirmation[]
 
   @@index([name])
   @@index([source])
+}
+
+model MobileCallEvent {
+  eventId            String    @id @db.Uuid
+  callRef            String    @db.Uuid
+  schemaVersion      Int
+  eventType          String
+  source             String
+  confidence         String
+  observedAt         DateTime
+  resolvedAt         DateTime
+  disconnectCategory String
+  durationBucket     String
+  outcomeCode        String
+  phone              String?
+  payloadHash        String
+  receivedAt         DateTime  @default(now())
+  customerId         String?
+  customer           Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, receivedAt])
+  @@index([callRef])
+  @@index([receivedAt])
 }
 
 model CustomerSeasonStatus {
@@ -158,10 +213,30 @@ model WorkOrder {
   invoiceEmail String? @db.VarChar(191)
 
   completions WorkOrderCompletion[]
+  smsReservationConfirmations SmsReservationConfirmation[]
 
   @@index([customerId])
   @@index([phone])
   @@index([visitDate])
+}
+
+model FinanceTransaction {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  occurredAt  DateTime @default(now())
+
+  type        String
+  status      String   @default("PAID")
+  category    String
+  amount      Float
+  description String?
+  counterparty String?
+  externalRef String? @unique
+
+  @@index([occurredAt])
+  @@index([type, status])
+  @@index([category])
 }
 
 model WorkOrderCompletion {
@@ -231,7 +306,7 @@ model CompletionFormAnswer {
   value        Json?
   valueText    String?
 
-  completion WorkOrderCompletion  @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  completion WorkOrderCompletion    @relation(fields: [completionId], references: [id], onDelete: Cascade)
   question   CompletionFormQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([completionId, questionId])
@@ -263,11 +338,65 @@ model SmsFormLog {
 
   sentAt DateTime @default(now())
 
+  publicToken               String?   @unique
+  mobileRequestId           String?   @unique
+  templateKey               String?
+  formUrl                   String?
+  providerMessageId         String?
+  reminderProviderMessageId String?
+  // Delivery is separate from the form lifecycle (`status`: pending/done/expired).
+  deliveryStatus            String? // QUEUED, SENT, DELIVERED, FAILED, CANCELLED
+  deliveryError             String?
+  deliveryUpdatedAt         DateTime?
+  reminderSentAt            DateTime?
+  expiresAt                 DateTime?
+  expiredAt                 DateTime?
+  managerNotifiedAt         DateTime?
+
   // 👉 новое:
   visitDate DateTime? // дата визита из sms-redirect (YYYY-MM-DD)
   visitTime String? // час визита "HH:MM"
 
   completedAt DateTime?
+  confirmation SmsReservationConfirmation?
+
+  @@index([status, sentAt])
+  @@index([status, expiresAt])
+}
+
+model SmsTemplate {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String
+  body     String
+  kind     String // BOOKING_FORM, MESSAGE
+  audience String // NEW, RETURNING, ALL
+  active   Boolean @default(true)
+
+  @@index([active, audience, kind])
+}
+
+model SmsReservationConfirmation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  smsFormLogId Int        @unique
+  smsFormLog   SmsFormLog @relation(fields: [smsFormLogId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer   @relation(fields: [customerId], references: [id])
+  workOrderId  Int?      @unique
+  workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  status                 String   @default("WAITING")
+  replyProviderMessageId String?  @unique
+  replyText              String?
+  confirmedAt            DateTime?
+
+  @@index([customerId, status])
+  @@index([status, createdAt])
 }
 
 model SmsCampaign {
@@ -283,12 +412,13 @@ model SmsCampaign {
   sourceYear   Int?
   filters      Json?
 
-  delaySeconds Int @default(7)
+  delaySeconds Int       @default(7)
   scheduledAt  DateTime?
   startedAt    DateTime?
   finishedAt   DateTime?
 
-  recipients SmsCampaignRecipient[]
+  recipients    SmsCampaignRecipient[]
+  contactEvents SmsContactEvent[]
 
   @@index([status])
   @@index([scheduledAt])
@@ -309,17 +439,48 @@ model SmsCampaignRecipient {
   name  String?
   phone String
 
-  status String @default("PENDING") // PENDING, SENT, FAILED, CANCELLED, BOOKED, DECLINED, CALL_BACK
+  status            String            @default("PENDING") // PENDING, SENT, FAILED, CANCELLED, BOOKED, DECLINED, CALL_BACK
   providerMessageId String?
-  sentAt    DateTime?
-  failedAt  DateTime?
-  error     String?
-  note      String?
+  sentAt            DateTime?
+  failedAt          DateTime?
+  error             String?
+  note              String?
+  contactEvents     SmsContactEvent[]
 
   @@index([campaignId])
   @@index([customerId])
   @@index([phone])
   @@index([status])
+}
+
+model SmsContactEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaignId String?
+  campaign   SmsCampaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  recipientId String?
+  recipient   SmsCampaignRecipient? @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  direction         String // IN, OUT, CALL, NOTE
+  type              String // sms_received, sms_sent, call_in, call_out, note
+  phone             String?
+  message           String?
+  providerMessageId String?
+  occurredAt        DateTime @default(now())
+  raw               Json?
+
+  @@unique([providerMessageId, type])
+  @@index([campaignId])
+  @@index([recipientId])
+  @@index([customerId])
+  @@index([phone])
+  @@index([occurredAt])
 }
 
 model GoogleReviewsCache {

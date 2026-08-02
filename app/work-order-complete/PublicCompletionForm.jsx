@@ -82,8 +82,8 @@ export default function PublicCompletionForm({
 							))}
 						</select>
 					</Field>
-					<Field label='Źródło'>
-						<select name='source' defaultValue={defaults.source}>
+					<Field label='Źródło' required>
+						<select name='source' required defaultValue={defaults.source}>
 							<option value=''>Nie wybrano</option>
 							{sources.map(source => (
 								<option key={source} value={source}>

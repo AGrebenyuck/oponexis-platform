@@ -1,5 +1,6 @@
 import { NextResponse, after } from 'next/server'
 import { upsertCustomerFromContact } from '@/lib/customer'
+import { normalizeCustomerSource } from '@/lib/customer-sources'
 import { normalizeOptionalText, normalizePhone, parseYmdToUtcDate } from '@/lib/date'
 import { db } from '@/lib/prisma'
 import {
@@ -148,7 +149,9 @@ export async function POST(req, { params }) {
 		const normalizedPhone = normalizePhone(body.phone) || order.phone
 		const serviceUsed = boolOrNull(body.serviceUsed)
 		const completedAt = parseYmdToUtcDate(body.completedAt) || order.visitDate
-		const source = normalizeOptionalText(body.source) || (order.leadId ? 'Site' : null)
+		const source =
+			normalizeCustomerSource(body.source) ||
+			(order.leadId ? 'Strona internetowa' : null)
 		const serviceNames = Array.isArray(body.serviceNames)
 			? body.serviceNames.map(String).filter(Boolean)
 			: String(body.serviceNames || order.service || '')
@@ -159,6 +162,12 @@ export async function POST(req, { params }) {
 		if (!normalizedPhone) {
 			return NextResponse.json(
 				{ ok: false, error: 'Brak telefonu klienta.' },
+				{ status: 400 }
+			)
+		}
+		if (!source) {
+			return NextResponse.json(
+				{ ok: false, error: 'Wybierz źródło klienta.' },
 				{ status: 400 }
 			)
 		}
