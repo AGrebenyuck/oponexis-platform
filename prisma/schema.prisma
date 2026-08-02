@@ -27,12 +27,13 @@ model User {
 }
 
 model PlatformCredential {
-  role           String   @id
+  role           String            @id
   passwordHash   String
   passwordSalt   String
-  sessionVersion Int      @default(1)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  sessionVersion Int               @default(1)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  sessions       PlatformSession[]
 }
 
 model PlatformAuthSetting {
@@ -40,6 +41,22 @@ model PlatformAuthSetting {
   sessionDays Int      @default(30)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model PlatformSession {
+  id          String             @id @default(cuid())
+  role        String
+  credential  PlatformCredential @relation(fields: [role], references: [role], onDelete: Cascade)
+  deviceLabel String?
+  userAgent   String?
+  ipAddress   String?
+  createdAt   DateTime           @default(now())
+  lastSeenAt  DateTime           @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  @@index([role, revokedAt, expiresAt])
+  @@index([lastSeenAt])
 }
 
 model Partner {
@@ -119,13 +136,13 @@ model Customer {
   notes  String?
   isTest Boolean @default(false)
 
-  leads            Lead[]
-  workOrders       WorkOrder[]
-  completions      WorkOrderCompletion[]
-  seasonStatuses   CustomerSeasonStatus[]
-  smsRecipients    SmsCampaignRecipient[]
-  smsContactEvents SmsContactEvent[]
-  mobileCallEvents MobileCallEvent[]
+  leads                       Lead[]
+  workOrders                  WorkOrder[]
+  completions                 WorkOrderCompletion[]
+  seasonStatuses              CustomerSeasonStatus[]
+  smsRecipients               SmsCampaignRecipient[]
+  smsContactEvents            SmsContactEvent[]
+  mobileCallEvents            MobileCallEvent[]
   smsReservationConfirmations SmsReservationConfirmation[]
 
   @@index([name])
@@ -212,7 +229,7 @@ model WorkOrder {
   invoiceNip   String? @db.VarChar(32)
   invoiceEmail String? @db.VarChar(191)
 
-  completions WorkOrderCompletion[]
+  completions                 WorkOrderCompletion[]
   smsReservationConfirmations SmsReservationConfirmation[]
 
   @@index([customerId])
@@ -221,18 +238,18 @@ model WorkOrder {
 }
 
 model FinanceTransaction {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  occurredAt  DateTime @default(now())
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  occurredAt DateTime @default(now())
 
-  type        String
-  status      String   @default("PAID")
-  category    String
-  amount      Float
-  description String?
+  type         String
+  status       String  @default("PAID")
+  category     String
+  amount       Float
+  description  String?
   counterparty String?
-  externalRef String? @unique
+  externalRef  String? @unique
 
   @@index([occurredAt])
   @@index([type, status])
@@ -357,7 +374,7 @@ model SmsFormLog {
   visitDate DateTime? // дата визита из sms-redirect (YYYY-MM-DD)
   visitTime String? // час визита "HH:MM"
 
-  completedAt DateTime?
+  completedAt  DateTime?
   confirmation SmsReservationConfirmation?
 
   @@index([status, sentAt])
@@ -387,11 +404,11 @@ model SmsReservationConfirmation {
   smsFormLog   SmsFormLog @relation(fields: [smsFormLogId], references: [id], onDelete: Cascade)
   customerId   String
   customer     Customer   @relation(fields: [customerId], references: [id])
-  workOrderId  Int?      @unique
+  workOrderId  Int?       @unique
   workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
 
-  status                 String   @default("WAITING")
-  replyProviderMessageId String?  @unique
+  status                 String    @default("WAITING")
+  replyProviderMessageId String?   @unique
   replyText              String?
   confirmedAt            DateTime?
 

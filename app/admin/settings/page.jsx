@@ -17,7 +17,7 @@ function formatDate(value) {
 export default async function PlatformSettingsPage() {
 	const session = await readPlatformSession()
 	if (session?.role !== 'SUPERADMIN') redirect('/admin/dashboard')
-	const { credentials, setting } = await getPlatformAuthOverview()
+	const { credentials, setting, sessions } = await getPlatformAuthOverview()
 	const orderedCredentials = ['ADMIN', 'SUPERADMIN'].map(role => {
 		const credential = credentials.find(item => item.role === role)
 		return {
@@ -38,7 +38,20 @@ export default async function PlatformSettingsPage() {
 			<div className='rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900'>
 				Hasła nie są wyświetlane ani przechowywane w otwartym tekście. Można je wyłącznie bezpiecznie zmienić.
 			</div>
-			<PlatformSettingsClient initialSessionDays={setting.sessionDays} credentials={orderedCredentials} />
+			<PlatformSettingsClient
+				initialSessionDays={setting.sessionDays}
+				credentials={orderedCredentials}
+				initialSessions={sessions.map(item => ({
+					id: item.id,
+					role: item.role,
+					deviceLabel: item.deviceLabel || 'Nieznane urządzenie',
+					ipAddress: item.ipAddress || 'brak danych',
+					createdAtLabel: formatDate(item.createdAt),
+					lastSeenAtLabel: formatDate(item.lastSeenAt),
+					expiresAtLabel: formatDate(item.expiresAt),
+					current: item.id === session.sessionId,
+				}))}
+			/>
 		</section>
 	)
 }

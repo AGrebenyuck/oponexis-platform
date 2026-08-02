@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 const COLORS = ['#2c70b7', '#fd6d02', '#2f7a4d', '#7c5bbf', '#d44865', '#22a3a3', '#d69b24', '#64748b', '#8b5e3c']
 
@@ -14,20 +15,9 @@ function periodLabel(value) {
 	return new Intl.DateTimeFormat('pl-PL', { month: 'long', year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)))
 }
 
-function chartBackground(categories, total) {
-	let progress = 0
-	const stops = categories.map((category, index) => {
-		const start = progress
-		progress += total ? (category.amount / total) * 100 : 0
-		return `${COLORS[index % COLORS.length]} ${start}% ${progress}%`
-	}).join(', ')
-	return stops ? `conic-gradient(${stops})` : '#e6eef4'
-}
-
 export default function FinanceExpenseInsights({ categories, total, count, selectedMonth }) {
 	const [open, setOpen] = useState(false)
 	const closeButtonRef = useRef(null)
-	const background = chartBackground(categories, total)
 	useEffect(() => {
 		if (open) closeButtonRef.current?.focus()
 	}, [open])
@@ -56,8 +46,22 @@ export default function FinanceExpenseInsights({ categories, total, count, selec
 						</div>
 
 						<div className='mt-7 grid items-center gap-7 md:grid-cols-[240px_1fr]'>
-							<div className='relative mx-auto aspect-square w-full max-w-60 rounded-full' style={{ background }} role='img' aria-label={`Udział wydatków według kategorii. Łącznie ${formatMoney(total)}.`}>
-								<div className='absolute inset-[25%] grid place-items-center rounded-full bg-white text-center shadow-inner'>
+							<div className='relative mx-auto aspect-square w-full max-w-60' role='img' aria-label={`Udział wydatków według kategorii. Łącznie ${formatMoney(total)}.`}>
+								<ResponsiveContainer width='100%' height='100%'>
+									<PieChart>
+										<Tooltip
+											formatter={(value, name) => [
+												`${formatMoney(value)} (${total ? ((Number(value) / total) * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) : 0}%)`,
+												name,
+											]}
+											contentStyle={{ border: '1px solid #d9e4ee', borderRadius: 10, boxShadow: '0 10px 24px rgba(19, 44, 67, 0.14)' }}
+										/>
+										<Pie data={categories} dataKey='amount' nameKey='category' innerRadius='52%' outerRadius='86%' paddingAngle={categories.length > 1 ? 1 : 0} stroke='white' strokeWidth={2}>
+											{categories.map((category, index) => <Cell key={category.category} fill={COLORS[index % COLORS.length]} className='cursor-help outline-none' />)}
+										</Pie>
+									</PieChart>
+								</ResponsiveContainer>
+								<div className='pointer-events-none absolute inset-[27%] grid place-items-center rounded-full bg-white text-center shadow-inner'>
 									<div><p className='text-xs font-bold text-[#7892a8]'>Razem</p><p className='mt-1 text-lg font-black'>{formatMoney(total)}</p></div>
 								</div>
 							</div>

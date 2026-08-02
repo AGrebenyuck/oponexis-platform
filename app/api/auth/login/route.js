@@ -16,7 +16,7 @@ export async function POST(request) {
 			)
 		}
 		const setting = await getPlatformAuthSetting()
-		const session = await writePlatformSession(credential, setting.sessionDays)
+		const session = await writePlatformSession(credential, setting.sessionDays, { request })
 		return NextResponse.json({ ok: true, role: session.role })
 	} catch (error) {
 		console.error('[platform login]', error)

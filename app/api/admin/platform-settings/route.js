@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
 	ensurePlatformCredential,
+	clearPlatformSession,
 	getPlatformAuthSetting,
 	hashPlatformPassword,
 	readPlatformSession,
@@ -54,11 +55,29 @@ export async function PATCH(request) {
 					sessionVersion: { increment: 1 },
 				},
 			})
+			await db.platformSession.updateMany({
+				where: { role, revokedAt: null },
+				data: { revokedAt: new Date() },
+			})
 			if (role === session.role) {
 				const setting = await getPlatformAuthSetting()
-				await writePlatformSession(credential, setting.sessionDays)
+				await writePlatformSession(credential, setting.sessionDays, { request })
 			}
 			return NextResponse.json({ ok: true })
+		}
+
+		if (body.action === 'revoke-session') {
+			const sessionId = String(body.sessionId || '')
+			if (!sessionId) {
+				return NextResponse.json({ ok: false, error: 'Brak identyfikatora sesji.' }, { status: 400 })
+			}
+			const result = await db.platformSession.updateMany({
+				where: { id: sessionId, revokedAt: null },
+				data: { revokedAt: new Date() },
+			})
+			const currentSession = sessionId === session.sessionId
+			if (currentSession) await clearPlatformSession()
+			return NextResponse.json({ ok: true, revoked: result.count > 0, currentSession })
 		}
 
 		return NextResponse.json({ ok: false, error: 'Nieprawidłowa operacja.' }, { status: 400 })

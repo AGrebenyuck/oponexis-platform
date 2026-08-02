@@ -12,6 +12,10 @@ const transactionSchema = z.object({
 	counterparty: z.string().trim().max(120).optional().or(z.literal('')),
 })
 
+const transactionUpdateSchema = transactionSchema
+	.omit({ counterparty: true })
+	.extend({ id: z.string().trim().min(1).max(191) })
+
 export async function POST(request) {
 	try {
 		const input = transactionSchema.parse(await request.json())
@@ -34,6 +38,32 @@ export async function POST(request) {
 			? 'Sprawdź kategorię, kwotę i datę.'
 			: 'Nie udało się zapisać transakcji.'
 		if (!isValidationError) console.error('[finance transactions] create failed', error)
+		return NextResponse.json({ ok: false, error: message }, { status: isValidationError ? 400 : 500 })
+	}
+}
+
+export async function PATCH(request) {
+	try {
+		const input = transactionUpdateSchema.parse(await request.json())
+		const transaction = await db.financeTransaction.update({
+			where: { id: input.id },
+			data: {
+				type: input.type,
+				status: input.status,
+				category: input.category,
+				amount: input.amount,
+				occurredAt: new Date(`${input.occurredAt}T12:00:00.000Z`),
+				description: input.description || null,
+			},
+		})
+
+		return NextResponse.json({ ok: true, data: transaction })
+	} catch (error) {
+		const isValidationError = error instanceof z.ZodError
+		const message = isValidationError
+			? 'Sprawdź kategorię, kwotę i datę.'
+			: 'Nie udało się zaktualizować transakcji.'
+		if (!isValidationError) console.error('[finance transactions] update failed', error)
 		return NextResponse.json({ ok: false, error: message }, { status: isValidationError ? 400 : 500 })
 	}
 }

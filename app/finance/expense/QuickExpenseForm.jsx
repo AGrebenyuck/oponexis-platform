@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 function today() {
 	const now = new Date()
@@ -18,11 +18,18 @@ export default function QuickExpenseForm({ expenseCategories, incomeCategories }
 	const [type, setType] = useState('EXPENSE')
 	const categories = type === 'EXPENSE' ? expenseCategories : incomeCategories
 
+	useEffect(() => {
+		if (!status.message) return undefined
+		const timeout = window.setTimeout(() => setStatus({ type: 'idle', message: '' }), 5000)
+		return () => window.clearTimeout(timeout)
+	}, [status.message])
+
 	async function submit(event) {
 		event.preventDefault()
+		const formElement = event.currentTarget
 		setSaving(true)
 		setStatus({ type: 'idle', message: '' })
-		const form = new FormData(event.currentTarget)
+		const form = new FormData(formElement)
 		const category = customCategory ? form.get('customCategory') : form.get('category')
 		const response = await fetch('/api/public/finance/expenses', {
 			method: 'POST',
@@ -41,12 +48,13 @@ export default function QuickExpenseForm({ expenseCategories, incomeCategories }
 			setStatus({ type: 'error', message: json?.error || 'Nie udało się zapisać transakcji.' })
 			return
 		}
-		event.currentTarget.reset()
+		formElement.reset()
 		setCustomCategory(false)
 		setStatus({ type: 'success', message: 'Transakcja została zapisana.' })
 	}
 
 	return (
+		<>
 		<form onSubmit={submit} className='mt-6 grid gap-5'>
 			<label className='grid gap-2 text-sm font-bold text-[#42576a]'>
 				Typ
@@ -89,11 +97,14 @@ export default function QuickExpenseForm({ expenseCategories, incomeCategories }
 			<button disabled={saving} className='rounded-xl bg-[#fd6d02] px-5 py-3.5 text-base font-black text-white shadow-lg shadow-[#fd6d02]/20 transition hover:bg-[#e96100] disabled:opacity-60'>
 				{saving ? 'Zapisywanie…' : 'Zapisz transakcję'}
 			</button>
-			{status.message ? (
-				<p role='status' className={`rounded-xl px-4 py-3 text-sm font-bold ${status.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
-					{status.message}
-				</p>
-			) : null}
 		</form>
+		{status.message ? (
+			<div role={status.type === 'error' ? 'alert' : 'status'} aria-live='polite' className={`fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-bold shadow-2xl sm:right-6 sm:top-6 ${status.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-800'}`}>
+				<span aria-hidden='true' className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs text-white ${status.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>{status.type === 'success' ? '✓' : '!'}</span>
+				<span>{status.message}</span>
+				<button type='button' onClick={() => setStatus({ type: 'idle', message: '' })} aria-label='Zamknij powiadomienie' className='ml-auto text-lg leading-none opacity-60 transition hover:opacity-100'>×</button>
+			</div>
+		) : null}
+		</>
 	)
 }

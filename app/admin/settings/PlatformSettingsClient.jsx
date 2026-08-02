@@ -7,10 +7,12 @@ const roleLabels = {
 	SUPERADMIN: 'Superadministrator',
 }
 
-export default function PlatformSettingsClient({ initialSessionDays, credentials }) {
+export default function PlatformSettingsClient({ initialSessionDays, credentials, initialSessions }) {
 	const [sessionDays, setSessionDays] = useState(String(initialSessionDays))
 	const [savingDays, setSavingDays] = useState(false)
 	const [passwordState, setPasswordState] = useState({})
+	const [sessions, setSessions] = useState(initialSessions)
+	const [revokingSessionId, setRevokingSessionId] = useState('')
 	const [message, setMessage] = useState(null)
 
 	async function requestUpdate(payload) {
@@ -67,6 +69,24 @@ export default function PlatformSettingsClient({ initialSessionDays, credentials
 		}))
 	}
 
+	async function revokeSession(sessionId) {
+		setRevokingSessionId(sessionId)
+		setMessage(null)
+		try {
+			const result = await requestUpdate({ action: 'revoke-session', sessionId })
+			if (result.currentSession) {
+				window.location.assign('/login')
+				return
+			}
+			setSessions(current => current.filter(item => item.id !== sessionId))
+			setMessage({ type: 'success', text: 'Urządzenie zostało wylogowane.' })
+		} catch (error) {
+			setMessage({ type: 'error', text: error.message })
+		} finally {
+			setRevokingSessionId('')
+		}
+	}
+
 	return (
 		<div className='space-y-4'>
 			{message ? (
@@ -95,6 +115,32 @@ export default function PlatformSettingsClient({ initialSessionDays, credentials
 					</div>
 				</div>
 			</form>
+
+			<section className='opx-panel overflow-hidden rounded-md'>
+				<div className='border-b border-[#dbe6ee] p-4 sm:p-5'>
+					<p className='text-xs font-bold uppercase tracking-wide text-[#fd6d02]'>Aktywne sesje</p>
+					<h2 className='mt-1 text-lg font-bold text-[#132c43]'>Zalogowane urządzenia</h2>
+					<p className='mt-1 text-sm text-[#5f7487]'>Rola wynika z hasła użytego przy logowaniu. Wylogowanie urządzenia natychmiast odbiera mu dostęp.</p>
+				</div>
+				{sessions.length ? (
+					<div className='divide-y divide-[#e6eef4]'>
+						{sessions.map(item => (
+							<div key={item.id} className='grid gap-3 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] lg:items-center'>
+								<div>
+									<div className='flex flex-wrap items-center gap-2'>
+										<p className='font-black text-[#132c43]'>{item.deviceLabel}</p>
+										<span className='rounded-full bg-[#e8f1f8] px-2 py-1 text-[11px] font-black text-[#2c70b7]'>{roleLabels[item.role] || item.role}</span>
+										{item.current ? <span className='rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-black text-emerald-800'>TO URZĄDZENIE</span> : null}
+									</div>
+									<p className='mt-1 text-xs text-[#5f7487]'>IP: {item.ipAddress} · logowanie: {item.createdAtLabel}</p>
+								</div>
+								<div className='text-xs leading-5 text-[#5f7487]'><p>Aktywność: <strong className='text-[#42576a]'>{item.lastSeenAtLabel}</strong></p><p>Wygasa: <strong className='text-[#42576a]'>{item.expiresAtLabel}</strong></p></div>
+								<button type='button' onClick={() => revokeSession(item.id)} disabled={revokingSessionId === item.id} className='rounded-lg border border-red-200 px-3 py-2 text-xs font-black text-red-700 transition hover:bg-red-50 disabled:opacity-50'>{revokingSessionId === item.id ? 'Wylogowywanie…' : item.current ? 'Wyloguj mnie' : 'Wyloguj urządzenie'}</button>
+							</div>
+						))}
+					</div>
+				) : <p className='p-5 text-sm text-[#5f7487]'>Brak aktywnych sesji.</p>}
+			</section>
 
 			<div className='grid gap-4 xl:grid-cols-2'>
 				{credentials.map(credential => {

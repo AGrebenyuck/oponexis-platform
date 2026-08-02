@@ -1,4 +1,6 @@
 import Image from 'next/image'
+import { redirect } from 'next/navigation'
+import { readPlatformSession } from '@/lib/platform-auth'
 import LoginForm from './LoginForm'
 
 export const metadata = { title: 'Logowanie · Oponexis Platform' }
@@ -11,6 +13,8 @@ function safeNextPath(value) {
 }
 
 export default async function LoginPage({ searchParams }) {
+	const session = await readPlatformSession()
+	if (session) redirect('/admin/dashboard')
 	const params = await searchParams
 	return (
 		<main className='flex min-h-screen items-center justify-center px-4 py-10'>
