@@ -94,6 +94,11 @@ export async function GET(req) {
 			  })
 			: null
 		const previous = customer?.workOrders?.[0] || null
+		const storedSource = lead?.customer?.source || customer?.source || ''
+		const attributionSource = String(lead?.firstTouchSource || '').trim().toLowerCase()
+		const sourceKnown =
+			Boolean(attributionSource && attributionSource !== 'direct') ||
+			Boolean(storedSource && storedSource !== 'Inne')
 
 		return jsonCors({
 			ok: true,
@@ -108,7 +113,8 @@ export async function GET(req) {
 						service: log.service || previous?.service || null,
 						source: attribution
 							? canonicalSourceFromAttribution(attribution)
-							: lead?.customer?.source || customer?.source || null,
+							: storedSource || null,
+						sourceKnown,
 						attribution,
 						visitDate: log.visitDate
 							? log.visitDate.toISOString().slice(0, 10)
