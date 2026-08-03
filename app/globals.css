@@ -74,6 +74,11 @@ button {
   font-weight: 700;
 }
 
+@keyframes opx-loading {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(340%); }
+}
+
 .fc {
   --fc-border-color: #d9e4ee;
   --fc-button-bg-color: #132c43;

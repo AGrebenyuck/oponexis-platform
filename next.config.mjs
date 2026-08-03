@@ -18,6 +18,7 @@ const allowedDevOrigins = Array.from(
 				.map(origin => origin.trim())
 				.filter(Boolean),
 			'10.138.221.219',
+			'10.168.210.219',
 		].filter(Boolean)
 	)
 )

@@ -16,6 +16,8 @@ const transactionUpdateSchema = transactionSchema
 	.omit({ counterparty: true })
 	.extend({ id: z.string().trim().min(1).max(191) })
 
+const transactionDeleteSchema = z.object({ id: z.string().trim().min(1).max(191) })
+
 export async function POST(request) {
 	try {
 		const input = transactionSchema.parse(await request.json())
@@ -65,5 +67,17 @@ export async function PATCH(request) {
 			: 'Nie udało się zaktualizować transakcji.'
 		if (!isValidationError) console.error('[finance transactions] update failed', error)
 		return NextResponse.json({ ok: false, error: message }, { status: isValidationError ? 400 : 500 })
+	}
+}
+
+export async function DELETE(request) {
+	try {
+		const { id } = transactionDeleteSchema.parse(await request.json())
+		await db.financeTransaction.delete({ where: { id } })
+		return NextResponse.json({ ok: true })
+	} catch (error) {
+		const isValidationError = error instanceof z.ZodError
+		if (!isValidationError) console.error('[finance transactions] delete failed', error)
+		return NextResponse.json({ ok: false, error: 'Nie udało się usunąć transakcji.' }, { status: isValidationError ? 400 : 500 })
 	}
 }

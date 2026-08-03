@@ -14,7 +14,7 @@ function currentModule(pathname) {
 	return modules.find(module => module.href !== '/admin/dashboard' && pathname.startsWith(module.href)) || modules[0]
 }
 
-export default function PlatformModuleNav({ compact = false }) {
+export default function PlatformModuleNav({ compact = false, isSuperadmin = false }) {
 	const pathname = usePathname()
 	const router = useRouter()
 	const rootRef = useRef(null)
@@ -39,6 +39,11 @@ export default function PlatformModuleNav({ compact = false }) {
 	function choose(module) {
 		setOpen(false)
 		if (module.href !== selected.href) router.push(module.href)
+	}
+
+	function chooseSettings() {
+		setOpen(false)
+		if (!pathname.startsWith('/admin/settings')) router.push('/admin/settings')
 	}
 
 	return (
@@ -69,6 +74,15 @@ export default function PlatformModuleNav({ compact = false }) {
 							</button>
 						)
 					})}
+					{isSuperadmin ? (
+						<>
+							<div className={compact ? 'my-1 border-t border-[#e2ebf2]' : 'my-1 border-t border-white/10'} />
+							<button type='button' onClick={chooseSettings} className={compact ? 'flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[#42576a] transition hover:bg-[#f6f8f9]' : 'flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-white/70 transition hover:bg-white/[0.07] hover:text-white'}>
+								<span className='grid h-6 w-6 place-items-center rounded-md bg-[#2c70b7]/15 text-sm text-[#2c70b7]'>⚙</span>
+								<span><span className='block text-sm font-semibold'>Ustawienia platformy</span><span className='block text-[11px] opacity-55'>Dostęp superadministratora</span></span>
+							</button>
+						</>
+					) : null}
 				</div>
 			) : null}
 		</div>

@@ -4,6 +4,7 @@ import AdminMobileMenu from './AdminMobileMenu'
 import PlatformModuleNav from './PlatformModuleNav'
 import AdminModuleSidebar from './AdminModuleSidebar'
 import LogoutButton from './LogoutButton'
+import NavigationFeedback from './NavigationFeedback'
 
 const navGroups = [
 	{
@@ -49,13 +50,8 @@ export default function AdminShell({ children, role }) {
 					<Image src='/oponexis-logo.svg' alt='Oponexis' width={192} height={34} priority className='h-auto w-44' />
 				</Link>
 				<p className='mt-2 px-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/55'>Platform</p>
-				<PlatformModuleNav />
+				<PlatformModuleNav isSuperadmin={isSuperadmin} />
 				<div className='mt-3 space-y-1'>
-					{isSuperadmin ? (
-						<Link href='/admin/settings' className='block rounded-lg px-3 py-2 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white'>
-							Ustawienia platformy
-						</Link>
-					) : null}
 					<LogoutButton />
 				</div>
 				<AdminModuleSidebar groups={navGroups} />
@@ -67,17 +63,13 @@ export default function AdminShell({ children, role }) {
 						<div className='flex items-center gap-2 font-black'><Image src='/oponexis-logo.svg' alt='Oponexis' width={120} height={21} priority className='h-auto w-24' /><span className='text-xs tracking-wide text-white/70'>PLATFORM</span></div>
 						<LogoutButton compact />
 					</div>
-					<PlatformModuleNav compact />
-					{isSuperadmin ? (
-						<Link href='/admin/settings' className='mt-2 block rounded-lg border border-white/15 px-3 py-2 text-center text-xs font-bold text-white/80'>
-							Ustawienia platformy
-						</Link>
-					) : null}
+					<PlatformModuleNav compact isSuperadmin={isSuperadmin} />
 				</header>
 				<main className='mx-auto max-w-7xl px-4 pb-28 pt-6 text-[#132c43] lg:px-8 lg:pb-6'>
 					{children}
 				</main>
 				<AdminMobileMenu groups={navGroups} />
+				<NavigationFeedback />
 			</div>
 		</div>
 	)

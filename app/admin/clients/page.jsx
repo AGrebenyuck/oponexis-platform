@@ -118,12 +118,12 @@ export default async function ClientsPage({ searchParams }) {
 					<span>Ostatnio</span>
 					<span>Usługi</span>
 				</div>
-				<div className='divide-y divide-[#eef3f7]'>
+				<div className='space-y-2 bg-[#f6f9fb] p-2 md:space-y-0 md:bg-white md:p-0 md:divide-y md:divide-[#eef3f7]'>
 					{pageRows.map(row => (
 						<Link
 							key={row.id}
 							href={`/admin/customers/${row.id}`}
-							className='grid gap-3 px-4 py-3 text-sm no-underline transition hover:bg-[#f8fbfd] md:grid-cols-[1.2fr_150px_120px_120px_130px_1fr]'
+							className='grid gap-x-3 gap-y-2 rounded-xl border border-[#dce7ef] bg-white px-4 py-3 text-sm no-underline shadow-sm transition hover:border-[#b9ccdb] hover:bg-[#fbfdfe] md:rounded-none md:border-0 md:px-4 md:py-3 md:shadow-none md:grid-cols-[1.2fr_150px_120px_120px_130px_1fr]'
 						>
 							<div>
 								<p className='font-bold text-[#132c43]'>
@@ -136,11 +136,11 @@ export default async function ClientsPage({ searchParams }) {
 								</p>
 								<p className='text-[#5f7487]'>{row.phone}</p>
 							</div>
-							<p className='text-[#314a60]'>{row.source}</p>
-							<p className='font-bold text-[#132c43]'>{row.totalOrders}</p>
-							<p className='font-bold text-[#132c43]'>{formatMoney(row.totalSpent)}</p>
-							<p className='text-[#314a60]'>{formatDate(row.latestActivity)}</p>
-							<p className='line-clamp-2 text-[#5f7487]'>
+							<p className='text-[#314a60] before:mr-1 before:text-[10px] before:font-bold before:uppercase before:text-[#8aa0b2] before:content-["Źródło:"] md:before:hidden'>{row.source}</p>
+							<p className='font-bold text-[#132c43] before:mr-1 before:text-[10px] before:font-bold before:uppercase before:text-[#8aa0b2] before:content-["Zlecenia:"] md:before:hidden'>{row.totalOrders}</p>
+							<p className='font-bold text-[#132c43] before:mr-1 before:text-[10px] before:font-bold before:uppercase before:text-[#8aa0b2] before:content-["LTV:"] md:before:hidden'>{formatMoney(row.totalSpent)}</p>
+							<p className='text-[#314a60] before:mr-1 before:text-[10px] before:font-bold before:uppercase before:text-[#8aa0b2] before:content-["Ostatnio:"] md:before:hidden'>{formatDate(row.latestActivity)}</p>
+							<p className='line-clamp-2 text-[#5f7487] before:mr-1 before:text-[10px] before:font-bold before:uppercase before:text-[#8aa0b2] before:content-["Usługi:"] md:before:hidden'>
 								{row.services.length ? row.services.join(', ') : '-'}
 							</p>
 						</Link>

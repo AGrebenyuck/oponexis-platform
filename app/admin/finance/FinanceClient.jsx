@@ -23,6 +23,7 @@ export default function FinanceClient({ transactions, savedExpenseCategories, sa
 	const [type, setType] = useState('EXPENSE')
 	const [status, setStatus] = useState('PAID')
 	const [message, setMessage] = useState('')
+	const [submitting, setSubmitting] = useState(false)
 	const [customCategory, setCustomCategory] = useState(false)
 	const [editTransaction, setEditTransaction] = useState(null)
 	const [editSaving, setEditSaving] = useState(false)
@@ -34,10 +35,13 @@ export default function FinanceClient({ transactions, savedExpenseCategories, sa
 
 	async function submit(event) {
 		event.preventDefault()
+		if (submitting) return
 		const formElement = event.currentTarget
 		const form = new FormData(formElement)
 		const category = customCategory ? form.get('customCategory') : form.get('category')
 		setMessage('')
+		setSubmitting(true)
+		try {
 		const response = await fetch('/api/admin/finance/transactions', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -59,6 +63,9 @@ export default function FinanceClient({ transactions, savedExpenseCategories, sa
 		setCustomCategory(false)
 		setMessage('Zapisano.')
 		startTransition(() => router.refresh())
+		} finally {
+			setSubmitting(false)
+		}
 	}
 
 	function openEdit(transaction) {
@@ -96,6 +103,28 @@ export default function FinanceClient({ transactions, savedExpenseCategories, sa
 
 	function updateEdit(field, value) {
 		setEditTransaction(current => ({ ...current, [field]: value }))
+	}
+
+	async function deleteTransaction(transaction) {
+		if (!window.confirm(`Usunąć zapis „${transaction.category}” z ${formatDate(transaction.occurredAt)}?`)) return
+		setEditSaving(true)
+		setEditError('')
+		try {
+			const response = await fetch('/api/admin/finance/transactions', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id: transaction.id }),
+			})
+			const json = await response.json().catch(() => null)
+			if (!response.ok || !json?.ok) throw new Error(json?.error || 'Nie udało się usunąć transakcji.')
+			setEditTransaction(null)
+			setMessage('Usunięto zapis.')
+			startTransition(() => router.refresh())
+		} catch (error) {
+			setEditError(error.message)
+		} finally {
+			setEditSaving(false)
+		}
 	}
 
 	return (
@@ -143,8 +172,8 @@ export default function FinanceClient({ transactions, savedExpenseCategories, sa
 						Opis <span className='font-normal text-[#89a7bf]'>(opcjonalnie)</span>
 						<textarea name='description' maxLength='500' rows='3' className='resize-y rounded-xl border border-[#cbd9e3] px-3 py-2.5 text-[#132c43]' />
 					</label>
-					<button disabled={isPending} className='rounded-xl bg-[#132c43] px-4 py-3 text-sm font-black text-white disabled:opacity-60'>
-						{isPending ? 'Odświeżanie…' : 'Zapisz transakcję'}
+					<button disabled={isPending || submitting} className='rounded-xl bg-[#132c43] px-4 py-3 text-sm font-black text-white disabled:opacity-60'>
+						{submitting ? 'Zapisywanie…' : isPending ? 'Odświeżanie…' : 'Zapisz transakcję'}
 					</button>
 					{message ? <p className='text-sm font-bold text-[#2f7a4d]'>{message}</p> : null}
 				</div>
@@ -164,7 +193,7 @@ export default function FinanceClient({ transactions, savedExpenseCategories, sa
 									{transaction.counterparty || transaction.description ? <p className='mt-1 text-sm text-[#5f7487]'>{[transaction.counterparty, transaction.description].filter(Boolean).join(' · ')}</p> : null}
 								</div>
 								<div className={`text-right text-base font-black ${transaction.type === 'EXPENSE' ? 'text-[#b9472b]' : 'text-[#2f7a4d]'}`}>{transaction.type === 'EXPENSE' ? '−' : '+'}{formatMoney(transaction.amount)}</div>
-								<button type='button' onClick={() => openEdit(transaction)} className='justify-self-start rounded-lg border border-[#cbd9e3] px-3 py-2 text-xs font-black text-[#2c70b7] transition hover:border-[#2c70b7] hover:bg-[#edf5fb] sm:justify-self-end'>Edytuj</button>
+								<div className='flex justify-self-start gap-2 sm:justify-self-end'><button type='button' onClick={() => openEdit(transaction)} className='rounded-lg border border-[#cbd9e3] px-3 py-2 text-xs font-black text-[#2c70b7] transition hover:border-[#2c70b7] hover:bg-[#edf5fb]'>Edytuj</button><button type='button' onClick={() => deleteTransaction(transaction)} disabled={editSaving} className='rounded-lg border border-red-200 px-3 py-2 text-xs font-black text-red-600 transition hover:bg-red-50 disabled:opacity-50'>Usuń</button></div>
 							</div>
 						))}
 					</div>
@@ -186,7 +215,7 @@ export default function FinanceClient({ transactions, savedExpenseCategories, sa
 							<label className='grid gap-1.5 text-sm font-bold text-[#42576a] sm:col-span-2'>Opis <span className='font-normal text-[#89a7bf]'>(opcjonalnie)</span><textarea maxLength='500' rows='3' value={editTransaction.description} onChange={event => updateEdit('description', event.target.value)} className='resize-y rounded-xl border border-[#cbd9e3] px-3 py-2.5 text-[#132c43]' /></label>
 						</div>
 						{editError ? <p role='alert' className='mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700'>{editError}</p> : null}
-						<div className='mt-5 flex justify-end gap-2'><button type='button' onClick={() => setEditTransaction(null)} disabled={editSaving} className='rounded-xl border border-[#cbd9e3] px-4 py-2.5 text-sm font-bold text-[#42576a] disabled:opacity-50'>Anuluj</button><button type='submit' disabled={editSaving} className='rounded-xl bg-[#132c43] px-4 py-2.5 text-sm font-black text-white disabled:opacity-60'>{editSaving ? 'Zapisywanie…' : 'Zapisz zmiany'}</button></div>
+						<div className='mt-5 flex flex-wrap justify-between gap-2'><button type='button' onClick={() => deleteTransaction(editTransaction)} disabled={editSaving} className='rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 disabled:opacity-50'>Usuń zapis</button><div className='flex gap-2'><button type='button' onClick={() => setEditTransaction(null)} disabled={editSaving} className='rounded-xl border border-[#cbd9e3] px-4 py-2.5 text-sm font-bold text-[#42576a] disabled:opacity-50'>Anuluj</button><button type='submit' disabled={editSaving} className='rounded-xl bg-[#132c43] px-4 py-2.5 text-sm font-black text-white disabled:opacity-60'>{editSaving ? 'Zapisywanie…' : 'Zapisz zmiany'}</button></div></div>
 					</form>
 				</div>
 			) : null}

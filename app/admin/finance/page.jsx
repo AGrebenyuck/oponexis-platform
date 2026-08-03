@@ -17,19 +17,13 @@ function Metric({ label, value, hint, tone = 'text-[#132c43]' }) {
 
 export default async function FinancePage({ searchParams }) {
 	const params = await searchParams
-	const requestedMonth = params?.month || 'all'
-	const range = financeMonthRange(requestedMonth)
-	const selectedMonth = range ? requestedMonth : 'all'
-	const transactionWhere = range ? { occurredAt: { gte: range.from, lt: range.to } } : undefined
-	const completionWhere = range
-		? {
-				isTest: false,
-				OR: [
-					{ completedAt: { gte: range.from, lt: range.to } },
-					{ completedAt: null, createdAt: { gte: range.from, lt: range.to } },
-				],
-			}
-		: { isTest: false }
+	const selectedMonths = (Array.isArray(params?.month) ? params.month : [params?.month]).filter(value => financeMonthRange(value))
+	const selectedYear = /^\d{4}$/.test(String(params?.year || '')) ? String(params.year) : ''
+	const ranges = selectedMonths.map(financeMonthRange).filter(Boolean)
+	const yearRange = selectedYear ? { from: new Date(Date.UTC(Number(selectedYear), 0, 1)), to: new Date(Date.UTC(Number(selectedYear) + 1, 0, 1)) } : null
+	const activeRanges = ranges.length ? ranges : yearRange ? [yearRange] : []
+	const transactionWhere = activeRanges.length ? { OR: activeRanges.map(range => ({ occurredAt: { gte: range.from, lt: range.to } })) } : undefined
+	const completionWhere = activeRanges.length ? { isTest: false, OR: activeRanges.flatMap(range => [{ completedAt: { gte: range.from, lt: range.to } }, { completedAt: null, createdAt: { gte: range.from, lt: range.to } }]) } : { isTest: false }
 	const [completions, transactions, transactionPeriods, completionPeriods] = await Promise.all([
 		db.workOrderCompletion.findMany({ where: completionWhere }),
 		db.financeTransaction.findMany({ where: transactionWhere, orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }] }),
@@ -65,8 +59,8 @@ export default async function FinancePage({ searchParams }) {
 					<p className='mt-2 max-w-3xl text-sm text-[#b9cad8]'>Przychód z wykonanych zleceń pobieramy automatycznie z CRM. Poniżej dodawaj operacyjne koszty, wynagrodzenia, paliwo i pozostałe zapisy.</p>
 				</div>
 				<div className='flex flex-wrap items-center gap-2'>
-					<FinancePeriodFilter months={months} selectedMonth={selectedMonth} />
-					<FinanceExpenseInsights categories={expenseCategories} total={paidExpenses} count={expenseRows.length} selectedMonth={selectedMonth} />
+					<FinancePeriodFilter months={months} selectedMonths={selectedMonths} selectedYear={selectedYear} />
+					<FinanceExpenseInsights categories={expenseCategories} total={paidExpenses} count={expenseRows.length} selectedMonth={selectedMonths.length === 1 ? selectedMonths[0] : selectedYear || 'all'} />
 				</div>
 			</div>
 			<div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>

@@ -128,11 +128,11 @@ export default function SegmentsAudience({ rows, filters }) {
 					<span>Ostatnio</span>
 					<span>Usługi</span>
 				</div>
-				<div className='divide-y divide-[#eef3f7]'>
+				<div className='space-y-2 bg-[#f6f9fb] p-2 md:space-y-0 md:bg-white md:p-0 md:divide-y md:divide-[#eef3f7]'>
 					{rows.slice(0, 120).map(row => (
 						<div
 							key={row.id}
-							className='grid gap-3 px-4 py-3 text-sm md:grid-cols-[32px_1.2fr_150px_100px_120px_130px_1fr]'
+							className='grid grid-cols-[24px_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-xl border border-[#dce7ef] bg-white px-4 py-3 text-sm shadow-sm md:grid-cols-[32px_1.2fr_150px_100px_120px_130px_1fr] md:rounded-none md:border-0 md:shadow-none'
 						>
 							<input
 								type='checkbox'
@@ -140,17 +140,19 @@ export default function SegmentsAudience({ rows, filters }) {
 								onChange={() => toggle(row.id)}
 								className='mt-1 h-4 w-4 accent-[#fd6d02]'
 							/>
-							<a href={`/admin/customers/${row.id}`} className='no-underline'>
+							<a href={`/admin/customers/${row.id}`} className='min-w-0 no-underline'>
 								<p className='font-bold text-[#132c43]'>{row.name}</p>
 								<p className='text-[#5f7487]'>{row.phone}</p>
 							</a>
-							<p className='text-[#314a60]'>{row.source}</p>
-							<p className='font-bold text-[#132c43]'>{row.totalOrders}</p>
-							<p className='font-bold text-[#132c43]'>{formatMoney(row.totalSpent)}</p>
-							<p className='text-[#314a60]'>{formatDate(row.latestActivity)}</p>
-							<p className='line-clamp-2 text-[#5f7487]'>
+							<div className='col-span-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-[#edf2f6] pt-2 text-xs md:col-span-1 md:contents md:border-0 md:p-0 md:text-sm'>
+								<p className='text-[#314a60] before:mr-1 before:font-bold before:text-[#8aa0b2] before:content-["Źródło:"] md:before:hidden'>{row.source}</p>
+								<p className='font-bold text-[#132c43] before:mr-1 before:font-bold before:text-[#8aa0b2] before:content-["Zlecenia:"] md:before:hidden'>{row.totalOrders}</p>
+								<p className='font-bold text-[#132c43] before:mr-1 before:font-bold before:text-[#8aa0b2] before:content-["LTV:"] md:before:hidden'>{formatMoney(row.totalSpent)}</p>
+								<p className='text-[#314a60] before:mr-1 before:font-bold before:text-[#8aa0b2] before:content-["Ostatnio:"] md:before:hidden'>{formatDate(row.latestActivity)}</p>
+								<p className='col-span-2 line-clamp-2 text-[#5f7487] before:mr-1 before:font-bold before:text-[#8aa0b2] before:content-["Usługi:"] md:col-span-1 md:before:hidden'>
 								{row.services.length ? row.services.join(', ') : '-'}
 							</p>
+							</div>
 						</div>
 					))}
 					{!rows.length ? (

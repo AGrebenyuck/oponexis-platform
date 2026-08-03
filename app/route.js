@@ -2,7 +2,12 @@ import { handleTelegramUpdate } from '@/lib/telegram'
 import { NextResponse } from 'next/server'
 
 export async function GET(req) {
-	return NextResponse.redirect(new URL('/admin', req.url))
+	const url = req.nextUrl.clone()
+	const host = req.headers.get('x-forwarded-host') || req.headers.get('host')
+	if (host) url.host = host
+	url.pathname = '/admin'
+	url.search = ''
+	return NextResponse.redirect(url)
 }
 
 export async function POST(req) {

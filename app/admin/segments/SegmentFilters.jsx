@@ -49,7 +49,8 @@ export default function SegmentFilters({ initialFilters, sources, services, year
 	}
 
 	return (
-		<div className='opx-panel grid gap-3 rounded-md p-4 md:grid-cols-2 xl:grid-cols-4'>
+		<div className='opx-panel relative grid gap-3 rounded-md p-4 md:grid-cols-2 xl:grid-cols-4'>
+			{isPending ? <div className='absolute inset-0 z-10 grid place-items-center rounded-md bg-white/65 backdrop-blur-[1px]' role='status'><span className='rounded-full bg-[#132c43] px-3 py-1.5 text-xs font-bold text-white shadow-lg'>Aktualizowanie segmentu…</span></div> : null}
 			<label className='space-y-1 text-sm font-bold text-[#132c43]'>
 				<span>Szukaj</span>
 				<input
@@ -163,7 +164,6 @@ export default function SegmentFilters({ initialFilters, sources, services, year
 				<Link href='/admin/segments' className='opx-btn-secondary px-4 py-2 text-sm font-bold'>
 					Wyczyść
 				</Link>
-				{isPending ? <span className='pb-2 text-xs text-[#5f7487]'>Aktualizowanie…</span> : null}
 			</div>
 		</div>
 	)
