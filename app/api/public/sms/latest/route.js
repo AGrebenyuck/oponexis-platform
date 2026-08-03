@@ -71,6 +71,7 @@ export async function GET(req) {
 					where: { phone: log.phone },
 					select: {
 						id: true,
+						name: true,
 						source: true,
 						workOrders: {
 							orderBy: [{ visitDate: 'desc' }, { updatedAt: 'desc' }],
@@ -108,7 +109,7 @@ export async function GET(req) {
 						id: log.id,
 						status: log.status,
 						leadId: log.leadId,
-						name: log.name,
+						name: log.name || customer?.name || null,
 						phone: log.phone,
 						service: log.service || previous?.service || null,
 						source: attribution
