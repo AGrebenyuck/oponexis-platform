@@ -161,7 +161,28 @@ export async function GET(request) {
 		if (!Number.isSafeInteger(id) || id < 1) return errorResponse(422, 'invalid_sms_receipt', false)
 		const log = await db.smsFormLog.findUnique({ where: { id } })
 		if (!log) return errorResponse(404, 'sms_receipt_not_found', false)
-		return statusResponse(log.deliveryStatus || 'QUEUED', log.deliveryError, log.deliveryUpdatedAt?.toISOString())
+		const savedStatus = providerStatus(log.deliveryStatus)
+		if (['SENT', 'DELIVERED', 'FAILED', 'CANCELLED'].includes(savedStatus) || !log.providerMessageId) {
+			return statusResponse(savedStatus, log.deliveryError, log.deliveryUpdatedAt?.toISOString())
+		}
+		try {
+			const current = await getSmsGateMessageStatus(log.providerMessageId, {
+				profile: process.env.SMSGATE_FORM_PROFILE,
+			})
+			const status = providerStatus(current.state)
+			const detail = status === 'FAILED' ? current.reason : null
+			const updated = await db.smsFormLog.update({
+				where: { id },
+				data: {
+					deliveryStatus: status,
+					deliveryError: detail,
+					deliveryUpdatedAt: new Date(),
+				},
+			})
+			return statusResponse(status, detail, updated.deliveryUpdatedAt?.toISOString())
+		} catch {
+			return statusResponse(savedStatus, log.deliveryError, log.deliveryUpdatedAt?.toISOString())
+		}
 	}
 
 	const events = await db.smsContactEvent.findMany({
