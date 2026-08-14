@@ -101,21 +101,13 @@ export default async function PublicWorkOrderCompletionPage({ searchParams }) {
 	const params = await searchParams
 	const id = Number(params?.id)
 	const saved = params?.saved === '1'
-	const questionConfig = await getCompletionFormQuestionConfig({ activeOnly: true })
-	const configuredSourceOptions = questionOptions(questionConfig.questions, 'source', sources)
-	const configuredServiceOptions = questionOptions(questionConfig.questions, 'serviceNames', serviceOptions)
-	const genderOptions = questionOptions(questionConfig.questions, 'gender', ['Mężczyzna', 'Kobieta'])
-	const serviceUsedOptions = questionOptions(questionConfig.questions, 'serviceUsed', ['Tak', 'Nie'])
-	const invoiceOptions = questionOptions(questionConfig.questions, 'invoiceIssued', ['Tak', 'Nie'])
-	const paymentOptions = questionOptions(questionConfig.questions, 'paymentMethod', ['Karta', 'Gotówka'])
-	const order = id
-		? await db.workOrder.findUnique({
+	const orderPromise = id
+		? db.workOrder.findUnique({
 				where: { id },
 				include: {
 					customer: {
 						include: { _count: { select: { completions: true, workOrders: true } } },
 					},
-					lead: true,
 					completions: {
 						orderBy: { createdAt: 'desc' },
 						take: 1,
@@ -123,8 +115,17 @@ export default async function PublicWorkOrderCompletionPage({ searchParams }) {
 					},
 				},
 		  })
-		: null
-
+		: Promise.resolve(null)
+	const [questionConfig, order] = await Promise.all([
+		getCompletionFormQuestionConfig({ activeOnly: true }),
+		orderPromise,
+	])
+	const configuredSourceOptions = questionOptions(questionConfig.questions, 'source', sources)
+	const configuredServiceOptions = questionOptions(questionConfig.questions, 'serviceNames', serviceOptions)
+	const genderOptions = questionOptions(questionConfig.questions, 'gender', ['Mężczyzna', 'Kobieta'])
+	const serviceUsedOptions = questionOptions(questionConfig.questions, 'serviceUsed', ['Tak', 'Nie'])
+	const invoiceOptions = questionOptions(questionConfig.questions, 'invoiceIssued', ['Tak', 'Nie'])
+	const paymentOptions = questionOptions(questionConfig.questions, 'paymentMethod', ['Karta', 'Gotówka'])
 	if (!id || !order) {
 		return (
 			<PublicShell title='Nie znaleziono zlecenia'>
