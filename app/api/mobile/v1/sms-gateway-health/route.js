@@ -47,6 +47,10 @@ export async function GET(request) {
 				deviceIdConfigured: data.deviceIdConfigured,
 				deviceIdUsed: data.deviceIdUsed,
 				simNumber: data.simNumber,
+				phoneNumber: data.senderPhone,
+				deviceName: data.deviceName,
+				deviceLastSeen: data.deviceLastSeen,
+				deviceAgeSeconds: data.deviceAgeSeconds,
 				checkedAt: new Date().toISOString(),
 				correlationId,
 			},
@@ -54,15 +58,18 @@ export async function GET(request) {
 		)
 	} catch (error) {
 		const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError'
+		const errorCode = timeout
+			? 'sms_gateway_timeout'
+			: error?.code || 'sms_gateway_unavailable'
 		console.error('[mobile sms gateway health] failed', {
 			event: 'mobile_sms_gateway_health_failed',
 			correlationId,
 			errorType: error?.constructor?.name || 'UnknownError',
-			errorCode: timeout ? 'sms_gateway_timeout' : 'sms_gateway_unavailable',
+			errorCode,
 		})
 		return errorResponse(
 			503,
-			timeout ? 'sms_gateway_timeout' : 'sms_gateway_unavailable',
+			errorCode,
 			true,
 			correlationId
 		)
