@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { authorizeMobileRequest, responseHeaders, validRequestId } from '@/lib/mobile-api'
 import { sendBookingFormSms } from '@/lib/sms/formSms'
-import { sendSmsGateMessage, smsGateConfigured } from '@/lib/sms/smsGateClient'
+import {
+	getSmsGateMessageStatus,
+	sendSmsGateMessage,
+	smsGateConfigured,
+} from '@/lib/sms/smsGateClient'
 import { createSmsContactEvent } from '@/lib/sms/smsContactEvents'
 import { normalizePhone } from '@/lib/date'
 import { db } from '@/lib/prisma'
@@ -132,6 +136,14 @@ function statusResponse(status, detail = null, updatedAt = null) {
 	)
 }
 
+function providerStatus(state) {
+	if (state === 'DELIVERED') return 'DELIVERED'
+	if (state === 'SENT') return 'SENT'
+	if (state === 'FAILED') return 'FAILED'
+	if (state === 'CANCELLED') return 'CANCELLED'
+	return 'QUEUED'
+}
+
 export async function GET(request) {
 	const authorization = authorizeMobileRequest(request)
 	if (authorization === 'not_configured') return errorResponse(503, 'mobile_api_not_configured', true)
@@ -164,9 +176,20 @@ export async function GET(request) {
 		sms_cancelled: 'CANCELLED',
 		sms_sent: 'SENT',
 	}
-	return statusResponse(
-		statusByType[latest?.type] || 'QUEUED',
-		latest?.type === 'sms_failed' ? latest.message : null,
-		latest?.occurredAt?.toISOString()
-	)
+	if (latest) {
+		return statusResponse(
+			statusByType[latest.type],
+			latest.type === 'sms_failed' ? latest.message : null,
+			latest.occurredAt?.toISOString()
+		)
+	}
+
+	try {
+		const current = await getSmsGateMessageStatus(receiptId, {
+			profile: process.env.SMSGATE_FORM_PROFILE,
+		})
+		return statusResponse(providerStatus(current.state), current.reason)
+	} catch {
+		return statusResponse('QUEUED')
+	}
 }
