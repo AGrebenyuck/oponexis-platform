@@ -500,6 +500,18 @@ model SmsContactEvent {
   @@index([occurredAt])
 }
 
+model MobilePushDevice {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  installationId String @unique
+  appId      String
+  enabled    Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+
+  @@index([enabled, lastSeenAt])
+}
+
 model GoogleReviewsCache {
   id        String   @id @default("google") // один глобальный ряд
   payload   Json

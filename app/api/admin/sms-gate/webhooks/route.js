@@ -5,7 +5,7 @@ import {
 	smsGateConfigSummary,
 } from '@/lib/sms/smsGateClient'
 
-const DEFAULT_EVENTS = ['sms:received', 'sms:sent', 'sms:delivered', 'sms:failed']
+const DEFAULT_EVENTS = ['sms:received', 'sms:sent', 'sms:delivered', 'sms:failed', 'sms:cancelled']
 
 function getWebhookUrl() {
 	const base = process.env.CRM_PUBLIC_URL || process.env.NEXT_PUBLIC_CRM_API_URL

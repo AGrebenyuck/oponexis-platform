@@ -6,7 +6,7 @@ import {
 	sendSmsGateMessage,
 	smsGateConfigured,
 } from '@/lib/sms/smsGateClient'
-import { createSmsContactEvent } from '@/lib/sms/smsContactEvents'
+import { createSmsContactEvent, recordSmsDeliveryEvent } from '@/lib/sms/smsContactEvents'
 import { normalizePhone } from '@/lib/date'
 import { db } from '@/lib/prisma'
 
@@ -102,8 +102,10 @@ export async function POST(request) {
 		return NextResponse.json(
 			{
 				result: 'sent',
-				receiptId: String(result.entry.id),
-				receiptType: 'form',
+				receiptId: String(result.providerMessageId || result.entry.id),
+				receiptType: result.providerMessageId ? 'message' : 'form',
+				providerMessageId: result.providerMessageId || null,
+				formReceiptId: String(result.entry.id),
 				duplicate: result.duplicate,
 				correlationId: requestId,
 			},
@@ -129,9 +131,15 @@ export async function POST(request) {
 	}
 }
 
-function statusResponse(status, detail = null, updatedAt = null) {
+function statusResponse(status, detail = null, updatedAt = null, providerMessageId = null) {
 	return NextResponse.json(
-		{ result: 'ok', status, ...(detail ? { detail } : {}), ...(updatedAt ? { updatedAt } : {}) },
+		{
+			result: 'ok',
+			status,
+			...(detail ? { detail } : {}),
+			...(updatedAt ? { updatedAt } : {}),
+			...(providerMessageId ? { providerMessageId } : {}),
+		},
 		{ headers: responseHeaders() }
 	)
 }
@@ -142,6 +150,40 @@ function providerStatus(state) {
 	if (state === 'FAILED') return 'FAILED'
 	if (state === 'CANCELLED') return 'CANCELLED'
 	return 'QUEUED'
+}
+
+async function liveMessageStatus(messageId) {
+	const profiles = [...new Set([process.env.SMSGATE_FORM_PROFILE, 'work', 'test'].filter(Boolean))]
+	for (const profile of profiles) {
+		try {
+			return await getSmsGateMessageStatus(messageId, { profile })
+		} catch (error) {
+			if (!String(error?.message || '').toLowerCase().includes('message not found')) throw error
+		}
+	}
+	return null
+}
+
+async function persistLiveStatus({ current, messageId, phone }) {
+	const status = providerStatus(current?.state)
+	if (!['SENT', 'DELIVERED', 'FAILED', 'CANCELLED'].includes(status)) return status
+	const timestampKey = {
+		SENT: 'sentAt',
+		DELIVERED: 'deliveredAt',
+		FAILED: 'failedAt',
+		CANCELLED: 'cancelledAt',
+	}[status]
+	await recordSmsDeliveryEvent({
+		event: `sms:${status.toLowerCase()}`,
+		payload: {
+			messageId,
+			recipient: phone,
+			reason: current?.reason,
+			[timestampKey]: new Date().toISOString(),
+		},
+		raw: { source: 'mobile_receipt_status', gateway: current?.raw },
+	})
+	return status
 }
 
 export async function GET(request) {
@@ -163,13 +205,20 @@ export async function GET(request) {
 		if (!log) return errorResponse(404, 'sms_receipt_not_found', false)
 		const savedStatus = providerStatus(log.deliveryStatus)
 		if (['SENT', 'DELIVERED', 'FAILED', 'CANCELLED'].includes(savedStatus) || !log.providerMessageId) {
-			return statusResponse(savedStatus, log.deliveryError, log.deliveryUpdatedAt?.toISOString())
+			return statusResponse(
+				savedStatus,
+				log.deliveryError,
+				log.deliveryUpdatedAt?.toISOString(),
+				log.providerMessageId
+			)
 		}
 		try {
-			const current = await getSmsGateMessageStatus(log.providerMessageId, {
-				profile: process.env.SMSGATE_FORM_PROFILE,
+			const current = await liveMessageStatus(log.providerMessageId)
+			const status = await persistLiveStatus({
+				current,
+				messageId: log.providerMessageId,
+				phone: log.phone,
 			})
-			const status = providerStatus(current.state)
 			const detail = status === 'FAILED' ? current.reason : null
 			const updated = await db.smsFormLog.update({
 				where: { id },
@@ -179,9 +228,14 @@ export async function GET(request) {
 					deliveryUpdatedAt: new Date(),
 				},
 			})
-			return statusResponse(status, detail, updated.deliveryUpdatedAt?.toISOString())
+			return statusResponse(status, detail, updated.deliveryUpdatedAt?.toISOString(), log.providerMessageId)
 		} catch {
-			return statusResponse(savedStatus, log.deliveryError, log.deliveryUpdatedAt?.toISOString())
+			return statusResponse(
+				savedStatus,
+				log.deliveryError,
+				log.deliveryUpdatedAt?.toISOString(),
+				log.providerMessageId
+			)
 		}
 	}
 
@@ -201,16 +255,21 @@ export async function GET(request) {
 		return statusResponse(
 			statusByType[latest.type],
 			latest.type === 'sms_failed' ? latest.message : null,
-			latest.occurredAt?.toISOString()
+			latest.occurredAt?.toISOString(),
+			receiptId
 		)
 	}
 
 	try {
-		const current = await getSmsGateMessageStatus(receiptId, {
-			profile: process.env.SMSGATE_FORM_PROFILE,
+		const queued = await db.smsContactEvent.findFirst({
+			where: { providerMessageId: receiptId, direction: 'OUT' },
+			select: { phone: true },
+			orderBy: { occurredAt: 'desc' },
 		})
-		return statusResponse(providerStatus(current.state), current.reason)
+		const current = await liveMessageStatus(receiptId)
+		const status = await persistLiveStatus({ current, messageId: receiptId, phone: queued?.phone })
+		return statusResponse(status, current?.reason, null, receiptId)
 	} catch {
-		return statusResponse('QUEUED')
+		return statusResponse('QUEUED', null, null, receiptId)
 	}
 }
