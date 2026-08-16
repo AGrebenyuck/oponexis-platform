@@ -186,10 +186,18 @@ export async function POST(req) {
 		try {
 			if (existingOrder && existingOrder.telegramMessageId) {
 				await updateWorkOrderMessage(workOrder)
+				console.info('[order client telegram]', {
+					action: 'updated_existing',
+					workOrderId: workOrder.id,
+				})
 			} else {
 				await sendWorkOrderToTelegram(workOrder, {
 					visitDate: effectiveVisitDate,
 					visitTime: effectiveVisitTime,
+				})
+				console.info('[order client telegram]', {
+					action: 'sent_new',
+					workOrderId: workOrder.id,
 				})
 			}
 		} catch (error) {
@@ -214,6 +222,9 @@ export async function POST(req) {
 				event: 'form_completed_sms_failed',
 				workOrderId: workOrder.id,
 				errorType: error?.constructor?.name || 'UnknownError',
+				errorCode: error?.code || null,
+				gatewayStatus: error?.status || null,
+				detail: String(error?.message || '').slice(0, 240) || null,
 			})
 		)
 
