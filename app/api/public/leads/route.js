@@ -1,5 +1,6 @@
 import { jsonCors, optionsCors } from '@/lib/cors'
 import { attachCustomerToLead } from '@/lib/customer'
+import { recordCustomerConsents } from '@/lib/customer-consent'
 import {
 	canonicalSourceFromAttribution,
 	firstTouchLeadData,
@@ -22,9 +23,11 @@ export async function POST(req) {
 			partnerCode,
 			visitorId,
 			attribution: rawAttribution,
+			privacyAccepted,
+			marketingSmsAccepted,
 		} = body || {}
 
-		if (!name?.trim() || !phone?.trim() || !serviceId?.toString().trim()) {
+		if (!name?.trim() || !phone?.trim() || !serviceId?.toString().trim() || privacyAccepted !== true) {
 			return jsonCors({ ok: false, error: 'Brak wymaganych pol' }, { status: 400 })
 		}
 
@@ -64,6 +67,12 @@ export async function POST(req) {
 			},
 		})
 		const lead = await attachCustomerToLead(createdLead, { source: customerSource })
+		await recordCustomerConsents({
+			customerId: lead.customerId,
+			privacyAccepted: true,
+			marketingSmsAccepted: marketingSmsAccepted === true,
+			source: 'quick_reservation',
+		})
 
 		if (partnerCode && visitorId) {
 			const day = new Date().toISOString().slice(0, 10)

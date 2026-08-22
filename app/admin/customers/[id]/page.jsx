@@ -97,6 +97,14 @@ export default async function CustomerProfilePage({ params }) {
 					</div>
 
 					<div className='opx-panel rounded-md p-4'>
+						<h2 className='font-bold text-[#132c43]'>Zgody</h2>
+						<div className='mt-3 space-y-2 text-sm text-[#314a60]'>
+							<p>Polityka prywatności: {customer.privacyPolicyAcceptedAt ? `potwierdzona ${formatDate(customer.privacyPolicyAcceptedAt)}` : 'brak potwierdzenia'}</p>
+							<p>Marketing SMS: {customer.marketingSmsConsentAt && (!customer.marketingSmsRevokedAt || customer.marketingSmsRevokedAt < customer.marketingSmsConsentAt) ? `zgoda od ${formatDate(customer.marketingSmsConsentAt)}` : customer.marketingSmsRevokedAt ? `cofnięta ${formatDate(customer.marketingSmsRevokedAt)}` : 'brak zgody'}</p>
+						</div>
+					</div>
+
+					<div className='opx-panel rounded-md p-4'>
 						<h2 className='font-bold text-[#132c43]'>Zgłoszenia i zlecenia</h2>
 						<div className='mt-3 grid grid-cols-2 gap-2'>
 							<SmallStat label='Leady' value={customer.leads.length} />

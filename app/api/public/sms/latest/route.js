@@ -73,6 +73,9 @@ export async function GET(req) {
 						id: true,
 						name: true,
 						source: true,
+						privacyPolicyAcceptedAt: true,
+						marketingSmsConsentAt: true,
+						marketingSmsRevokedAt: true,
 						workOrders: {
 							orderBy: [{ visitDate: 'desc' }, { updatedAt: 'desc' }],
 							take: 1,
@@ -133,9 +136,16 @@ export async function GET(req) {
 								tireSize: previous.tireSize,
 								wantsInvoice: previous.wantsInvoice,
 								invoiceNip: previous.invoiceNip,
-								invoiceEmail: previous.invoiceEmail,
+						invoiceEmail: previous.invoiceEmail,
 							  }
 							: null,
+						consents: {
+							privacyAccepted: Boolean(customer?.privacyPolicyAcceptedAt),
+							marketingSmsAccepted: Boolean(
+								customer?.marketingSmsConsentAt &&
+								(!customer.marketingSmsRevokedAt || customer.marketingSmsRevokedAt < customer.marketingSmsConsentAt)
+							),
+						},
 				  }
 				: null,
 		})
