@@ -17,6 +17,7 @@ function errorResponse(status, code) {
 function sourceFor(type) {
 	if (type.includes('reminder')) return 'REMINDER'
 	if (type.includes('form_completed')) return 'FORM_COMPLETED'
+	if (type.includes('appointment_changed')) return 'APPOINTMENT_CHANGED'
 	if (type.includes('booking_form')) return 'BOOKING_FORM'
 	if (type.includes('campaign')) return 'CAMPAIGN'
 	if (type.includes('mobile')) return 'COMPANION'

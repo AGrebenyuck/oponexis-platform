@@ -1,4 +1,5 @@
 import { db } from '@/lib/prisma'
+import { sendAppointmentChangedSms } from '@/lib/sms/formSms'
 import { upsertCustomerFromContact } from '@/lib/customer'
 import {
 	updateIncompleteCompletionMessage,
@@ -14,6 +15,12 @@ function parseVisitDate(str) {
 	if (!str) return null
 	const dt = DateTime.fromISO(String(str), { zone: ZONE }).startOf('day')
 	return dt.isValid ? dt.toJSDate() : null
+}
+
+function visitLabel(date, time) {
+	if (!date || !time) return null
+	const formatted = DateTime.fromJSDate(date, { zone: ZONE }).toFormat('dd.LL.yyyy')
+	return `${formatted}, ${time}`
 }
 
 async function findWorkOrderById(rawId) {
@@ -74,6 +81,14 @@ export async function PUT(req, ctx) {
 		}
 
 		const incoming = await req.json()
+		const nextVisitDate =
+			typeof incoming.visitDate === 'string'
+				? parseVisitDate(incoming.visitDate)
+				: existing.visitDate
+		const nextVisitTime = incoming.visitTime ?? existing.visitTime
+		const previousVisit = visitLabel(existing.visitDate, existing.visitTime)
+		const nextVisit = visitLabel(nextVisitDate, nextVisitTime)
+		const appointmentChanged = Boolean(previousVisit && nextVisit && previousVisit !== nextVisit)
 		const nextAddress = incoming.address ?? existing.address
 		const addressChanged =
 			typeof incoming.address === 'string' &&
@@ -111,11 +126,8 @@ export async function PUT(req, ctx) {
 						: addressChanged
 						? null
 						: existing.lng,
-				visitTime: incoming.visitTime ?? existing.visitTime,
-				visitDate:
-					typeof incoming.visitDate === 'string'
-						? parseVisitDate(incoming.visitDate)
-						: existing.visitDate,
+				visitTime: nextVisitTime,
+				visitDate: nextVisitDate,
 				wheelRimSize: incoming.wheelRimSize ?? existing.wheelRimSize,
 				tireSize: incoming.tireSize ?? existing.tireSize,
 				wantsInvoice:
@@ -130,6 +142,22 @@ export async function PUT(req, ctx) {
 		await updateWorkOrderMessage(updated)
 		await updateScheduleMessage()
 		await updateIncompleteCompletionMessage()
+		if (appointmentChanged) {
+			await sendAppointmentChangedSms({
+				phone: updated.phone,
+				name: updated.name,
+				previousVisit,
+				nextVisit,
+				workOrderId: updated.id,
+				profile: process.env.SMSGATE_FORM_PROFILE,
+			}).catch(error =>
+				console.error('[work-order appointment change sms]', {
+					workOrderId: updated.id,
+					errorCode: error?.code || null,
+					errorType: error?.constructor?.name || 'UnknownError',
+				})
+			)
+		}
 
 		return NextResponse.json({ ok: true, order: updated })
 	} catch (error) {

@@ -5,6 +5,7 @@ import {
 	parseYmdToUtcDate,
 } from '@/lib/date'
 import { upsertCustomerFromContact } from '@/lib/customer'
+import { consentSnapshot, recordCustomerConsents } from '@/lib/customer-consent'
 import { normalizeCustomerSource } from '@/lib/customer-sources'
 import { canonicalSourceFromAttribution, normalizeFirstTouch } from '@/lib/attribution'
 import { db } from '@/lib/prisma'
@@ -85,6 +86,8 @@ export async function POST(req) {
 			attribution: rawAttribution,
 			smsFormLogId,
 			smsFormPublicToken,
+			privacyAccepted,
+			marketingSmsAccepted,
 		} = body || {}
 
 		if (!name?.trim() || !phone?.trim()) {
@@ -103,6 +106,21 @@ export async function POST(req) {
 		}
 
 		const normalizedPhone = normalizePhone(phone) || phone.trim()
+		const existingCustomer = await db.customer.findUnique({
+			where: { phone: normalizedPhone },
+			select: {
+				id: true,
+				privacyPolicyAcceptedAt: true,
+				marketingSmsConsentAt: true,
+				marketingSmsRevokedAt: true,
+			},
+		})
+		if (!consentSnapshot(existingCustomer).privacyAccepted && privacyAccepted !== true) {
+			return jsonCors(
+				{ ok: false, error: 'Potwierdź zapoznanie się z polityką prywatności.' },
+				{ status: 400 }
+			)
+		}
 		const attribution = normalizeFirstTouch(rawAttribution)
 		const source =
 			normalizeCustomerSource(rawSource) ||
@@ -133,6 +151,12 @@ export async function POST(req) {
 			phone: normalizedPhone,
 			name,
 			source,
+		})
+		await recordCustomerConsents({
+			customerId: customer?.id,
+			privacyAccepted: privacyAccepted === true,
+			marketingSmsAccepted: marketingSmsAccepted === true,
+			source: smsFormPublicToken ? 'sms_form' : 'order_form',
 		})
 
 		const existingOrder = await findExistingWorkOrder({

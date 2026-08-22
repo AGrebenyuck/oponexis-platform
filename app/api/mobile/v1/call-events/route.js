@@ -10,6 +10,11 @@ const OUTCOMES = new Set([
 	'follow_up_required',
 	'not_interested',
 	'wrong_number',
+	'no_availability',
+	'topic_agriculture',
+	'topic_construction',
+	'topic_trucks',
+	'topic_other',
 	'other',
 ])
 
@@ -71,6 +76,10 @@ export async function POST(request) {
 	if (!Number.isFinite(observedAt.getTime()) || !Number.isFinite(resolvedAt.getTime())) {
 		return errorResponse(400, 'invalid_timestamp', false, eventId)
 	}
+	const topicLabel = typeof attributes.topicLabel === 'string' ? attributes.topicLabel.trim() : null
+	if (topicLabel?.length > 120 || (attributes.outcomeCode === 'topic_other' && !topicLabel)) {
+		return errorResponse(422, 'invalid_topic_label', false, eventId)
+	}
 	const phone = typeof body.phoneNumber === 'string' ? normalizePhone(body.phoneNumber.trim()) : null
 	const customerRef = typeof body.customerRef === 'string' ? body.customerRef.trim() : null
 	const payloadHash = createHash('sha256').update(canonicalPayload(body)).digest('hex')
@@ -104,6 +113,7 @@ export async function POST(request) {
 				disconnectCategory: String(attributes.disconnectCategory || '').slice(0, 32),
 				durationBucket: String(attributes.durationBucket || '').slice(0, 32),
 				outcomeCode: attributes.outcomeCode,
+				topicLabel,
 				phone: phone || null,
 				payloadHash,
 				customerId: customer?.id || null,

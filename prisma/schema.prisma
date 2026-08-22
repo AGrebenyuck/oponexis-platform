@@ -136,6 +136,14 @@ model Customer {
   notes  String?
   isTest Boolean @default(false)
 
+  // Current consent state is materialized here for fast CRM filtering. The
+  // immutable history is kept in CustomerConsent.
+  privacyPolicyAcceptedAt DateTime?
+  privacyPolicyVersion    String?
+  marketingSmsConsentAt   DateTime?
+  marketingSmsVersion     String?
+  marketingSmsRevokedAt   DateTime?
+
   leads                       Lead[]
   workOrders                  WorkOrder[]
   completions                 WorkOrderCompletion[]
@@ -144,9 +152,26 @@ model Customer {
   smsContactEvents            SmsContactEvent[]
   mobileCallEvents            MobileCallEvent[]
   smsReservationConfirmations SmsReservationConfirmation[]
+  consents                    CustomerConsent[]
 
   @@index([name])
   @@index([source])
+}
+
+model CustomerConsent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  type          String // PRIVACY_NOTICE, MARKETING_SMS
+  action        String // GRANTED, REVOKED
+  policyVersion String
+  source        String // quick_reservation, order_form, sms_form, unsubscribe
+
+  @@index([customerId, type, createdAt])
+  @@index([type, action, createdAt])
 }
 
 model MobileCallEvent {
@@ -161,6 +186,7 @@ model MobileCallEvent {
   disconnectCategory String
   durationBucket     String
   outcomeCode        String
+  topicLabel         String?   @db.VarChar(120)
   phone              String?
   payloadHash        String
   receivedAt         DateTime  @default(now())

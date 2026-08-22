@@ -120,6 +120,16 @@ export default function SegmentFilters({ initialFilters, sources, services, year
 					{ value: 'no', label: 'Bez przechowania' },
 				]}
 			/>
+			<FilterSelect
+				label='Zgoda marketingowa SMS'
+				value={filters.marketingSms}
+				onChange={value => update('marketingSms', value)}
+				emptyLabel='Wszyscy'
+				options={[
+					{ value: 'yes', label: 'Wyrażona' },
+					{ value: 'no', label: 'Brak lub cofnięta' },
+				]}
+			/>
 			<FilterInput
 				label='Min. zleceń'
 				type='number'

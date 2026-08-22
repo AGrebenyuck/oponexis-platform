@@ -25,6 +25,8 @@ function matches(row, filters) {
 	if (filters.repeat === 'no' && row.totalOrders >= 2) return false
 	if (filters.storage === 'yes' && !row.hasStorage) return false
 	if (filters.storage === 'no' && row.hasStorage) return false
+	if (filters.marketingSms === 'yes' && !row.marketingSmsAccepted) return false
+	if (filters.marketingSms === 'no' && row.marketingSmsAccepted) return false
 	if (filters.minOrders && row.totalOrders < Number(filters.minOrders)) return false
 	if (filters.minSpent && row.totalSpent < Number(filters.minSpent)) return false
 	if (filters.from || filters.to) {
@@ -71,6 +73,7 @@ export default async function SegmentsPage({ searchParams }) {
 		services: selectedServices,
 		repeat: String(params?.repeat || ''),
 		storage: String(params?.storage || ''),
+		marketingSms: String(params?.marketingSms || ''),
 		minOrders: String(params?.minOrders || ''),
 		minSpent: String(params?.minSpent || ''),
 		from: String(params?.from || ''),
