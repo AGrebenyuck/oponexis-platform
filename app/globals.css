@@ -74,6 +74,21 @@ button {
   font-weight: 700;
 }
 
+.opx-order-map-marker {
+  background: transparent;
+  border: 0;
+}
+
+.opx-order-map-marker span {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #fd6d02;
+  box-shadow: 0 2px 8px rgba(19, 44, 67, 0.45);
+}
+
 @keyframes opx-loading {
   0% { transform: translateX(-110%); }
   100% { transform: translateX(340%); }

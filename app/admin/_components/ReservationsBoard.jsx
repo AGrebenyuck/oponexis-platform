@@ -1,11 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
 import Button from './ui/Button'
 import Spin from './ui/Spin'
 
 const PAGE_SIZE = 12
+const ReservationsMapClient = dynamic(() => import('./ReservationsMapClient'), {
+	ssr: false,
+})
 
 function dateText(value) {
 	if (!value) return 'Bez daty'
@@ -45,6 +49,9 @@ export default function ReservationsPage() {
 	const [deletingId, setDeletingId] = useState(null)
 
 	useEffect(() => {
+		if (view === 'map') {
+			return
+		}
 		async function load() {
 			setLoading(true)
 			setPage(1)
@@ -159,9 +166,21 @@ export default function ReservationsPage() {
 					>
 						Archiwum
 					</button>
+					<button
+						type='button'
+						onClick={() => setView('map')}
+						className={`rounded-md px-3 py-2 text-sm font-bold ${
+							view === 'map'
+								? 'bg-[#fd6d02] text-white'
+								: 'text-white hover:bg-white/10'
+						}`}
+					>
+						Mapa wykonanych
+					</button>
 				</div>
 			</div>
 
+			{view === 'map' ? <ReservationsMapClient /> : <>
 			<div className={`grid gap-3 ${view === 'past' ? 'md:grid-cols-[1fr_240px]' : ''}`}>
 				<input
 					value={query}
@@ -255,6 +274,7 @@ export default function ReservationsPage() {
 					) : null}
 				</div>
 			)}
+			</>}
 
 			{selectedOrder ? (
 				<div className='fixed inset-0 z-50 flex items-end bg-black/55 p-0 sm:items-center sm:p-4'>

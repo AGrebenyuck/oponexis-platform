@@ -9,7 +9,9 @@
     "start": "next start",
 		"lint": "eslint",
 		"import:finance-expenses": "node --env-file=.env scripts/import-finance-expenses.mjs",
-		"cron:sms-forms": "node --env-file=.env scripts/run-sms-form-reminders.mjs"
+		"cron:sms-forms": "node --env-file=.env scripts/run-sms-form-reminders.mjs",
+		"geocode:existing-work-orders": "node --env-file=.env --env-file=.env.local scripts/geocode-existing-work-orders.mjs",
+		"geocode:opolskie-work-orders": "node --env-file=.env --env-file=.env.local scripts/regeocode-opolskie-work-orders.mjs"
   },
   "dependencies": {
     "@floating-ui/react-dom": "^2.1.8",
@@ -32,6 +34,7 @@
     "react-dom": "19.2.4",
     "react-hook-form": "^7.80.0",
     "react-leaflet": "^5.0.0",
+    "react-leaflet-cluster": "^4.1.3",
     "recharts": "^3.9.2",
     "zod": "^4.4.3"
   },

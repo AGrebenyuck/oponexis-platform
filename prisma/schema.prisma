@@ -280,6 +280,26 @@ model WorkOrder {
   @@index([visitDate])
 }
 
+model AddressGeocode {
+  addressKey  String   @id
+  status      String
+  lat         Float?
+  lng         Float?
+  locality    String?
+  voivodeship String?
+  attemptedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model GeocodingMonthlyUsage {
+  month        String   @id
+  requestCount Int      @default(0)
+  updatedAt    DateTime @updatedAt
+}
+
 model FinanceTransaction {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
