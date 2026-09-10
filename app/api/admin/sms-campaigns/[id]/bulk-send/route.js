@@ -57,7 +57,7 @@ export async function POST(req, { params }) {
 					message: text,
 					providerMessageId: provider?.id || null,
 					occurredAt: new Date(),
-					raw: { profile: config.profile },
+					raw: { profile: config.profile, ...(provider?.raw || {}) },
 				})
 				await markRecipientSmsSent({ campaignId: id, recipient })
 				results.push({ id: recipient.id, ok: true, providerMessageId: provider?.id || null })

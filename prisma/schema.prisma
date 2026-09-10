@@ -281,15 +281,15 @@ model WorkOrder {
 }
 
 model AddressGeocode {
-  addressKey  String   @id
+  addressKey  String    @id
   status      String
   lat         Float?
   lng         Float?
   locality    String?
   voivodeship String?
   attemptedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
 }
@@ -593,15 +593,49 @@ model SmsContactEvent {
 }
 
 model MobilePushDevice {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  installationId String @unique
-  appId      String
-  enabled    Boolean  @default(true)
-  lastSeenAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  installationId String   @unique
+  appId          String
+  enabled        Boolean  @default(true)
+  lastSeenAt     DateTime @default(now())
+  label          String?
+  deviceType     String   @default("TEST") // TEST, WORK
+  phoneNumber    String?
+  simSlot        Int      @default(1)
+  manufacturer   String?
+  model          String?
+  appVersion     String?
+  smsPrimary     Boolean  @default(false)
+  lastSmsAt      DateTime?
 
   @@index([enabled, lastSeenAt])
+  @@index([smsPrimary, enabled])
+}
+
+model MobileSmsDispatch {
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  idempotencyKey String?   @unique
+  phone          String
+  message        String
+  source         String
+  profile        String?
+  status         String    @default("QUEUED") // QUEUED, CLAIMED, SENT, DELIVERED, FAILED, CANCELLED
+  claimedBy      String?
+  claimedAt      DateTime?
+  attemptCount   Int       @default(0)
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+  error          String?
+  deviceId       String?
+
+  @@index([status, createdAt])
+  @@index([phone, createdAt])
+  @@index([deviceId, status, createdAt])
 }
 
 model GoogleReviewsCache {

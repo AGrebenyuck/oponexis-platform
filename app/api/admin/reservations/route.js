@@ -4,6 +4,7 @@ import { upsertCustomerFromContact } from '@/lib/customer'
 import { db } from '@/lib/prisma'
 import { realWorkOrderWhere } from '@/lib/test-data'
 import {
+	sendWorkOrderToTelegram,
 	updateIncompleteCompletionMessage,
 	updateScheduleMessage,
 } from '@/lib/telegram'
@@ -154,7 +155,12 @@ export async function POST(req) {
 			},
 		})
 
-		await updateScheduleMessage()
+		await sendWorkOrderToTelegram(created).catch(error =>
+			console.error('[reservations post telegram]', error)
+		)
+		await updateScheduleMessage().catch(error =>
+			console.error('[reservations post schedule]', error)
+		)
 		await updateIncompleteCompletionMessage().catch(error =>
 			console.error('[reservations post incomplete tracker]', error)
 		)

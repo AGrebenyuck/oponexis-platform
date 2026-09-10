@@ -233,13 +233,14 @@ export async function POST(req) {
 					customId,
 					profile,
 				})
+				const queuedForCompanion = sent.raw?.provider === 'companion'
 
 				await db.smsCampaignRecipient.update({
 					where: { id: recipient.id },
 					data: {
-						status: 'SENT',
+						status: queuedForCompanion ? 'QUEUED' : 'SENT',
 						providerMessageId: sent.id,
-						sentAt: new Date(),
+						sentAt: queuedForCompanion ? null : new Date(),
 						error: null,
 					},
 				})

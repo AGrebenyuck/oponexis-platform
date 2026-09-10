@@ -1,4 +1,5 @@
 import { db } from '@/lib/prisma'
+import { dateInputValue, todayInputValue } from '@/lib/date'
 import { getCompletionFormQuestionConfig } from '@/lib/completion-form-questions'
 import {
 	CUSTOMER_SOURCE_OPTIONS,
@@ -93,8 +94,7 @@ function normalizeSource(value, availableSources = sources) {
 }
 
 function dateInput(value) {
-	if (!value) return new Date().toISOString().slice(0, 10)
-	return new Date(value).toISOString().slice(0, 10)
+	return value ? dateInputValue(value) : todayInputValue()
 }
 
 export default async function PublicWorkOrderCompletionPage({ searchParams }) {

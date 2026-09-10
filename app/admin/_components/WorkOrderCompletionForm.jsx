@@ -7,6 +7,7 @@ import {
 	CUSTOMER_SOURCE_OPTIONS,
 	normalizeCustomerSource,
 } from '@/lib/customer-sources'
+import { dateInputValue, todayInputValue } from '@/lib/date'
 import Button from './ui/Button'
 import Spin from './ui/Spin'
 
@@ -57,8 +58,7 @@ const emptyForm = {
 }
 
 function dateInput(value) {
-	if (!value) return ''
-	return new Date(value).toISOString().slice(0, 10)
+	return dateInputValue(value)
 }
 
 function normalizeSearchText(value) {
@@ -154,7 +154,7 @@ export default function WorkOrderCompletionForm() {
 					completedAt:
 						dateInput(completion?.completedAt) ||
 						dateInput(loadedOrder.visitDate) ||
-						new Date().toISOString().slice(0, 10),
+						todayInputValue(),
 					serviceNames: completion?.serviceNames?.length
 						? completion.serviceNames
 						: baseServices,

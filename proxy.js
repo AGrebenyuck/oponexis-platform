@@ -31,7 +31,9 @@ export async function proxy(request) {
 		pathname === '/admin/settings' ||
 		pathname.startsWith('/admin/settings/') ||
 		pathname === '/api/admin/platform-settings' ||
-		pathname.startsWith('/api/admin/platform-settings/')
+		pathname.startsWith('/api/admin/platform-settings/') ||
+		pathname === '/api/admin/companion-devices' ||
+		pathname.startsWith('/api/admin/companion-devices/')
 
 	if ((isAdminPage || isAdminApi) && !session) {
 		if (isAdminApi) {

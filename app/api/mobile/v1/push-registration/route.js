@@ -33,8 +33,21 @@ export async function POST(request) {
 
 	await db.mobilePushDevice.upsert({
 		where: { installationId },
-		create: { installationId, appId },
-		update: { appId, enabled: true, lastSeenAt: new Date() },
+		create: {
+			installationId,
+			appId,
+			manufacturer: String(body?.manufacturer || '').trim().slice(0, 100) || null,
+			model: String(body?.model || '').trim().slice(0, 100) || null,
+			appVersion: String(body?.appVersion || '').trim().slice(0, 50) || null,
+		},
+		update: {
+			appId,
+			enabled: true,
+			lastSeenAt: new Date(),
+			manufacturer: String(body?.manufacturer || '').trim().slice(0, 100) || undefined,
+			model: String(body?.model || '').trim().slice(0, 100) || undefined,
+			appVersion: String(body?.appVersion || '').trim().slice(0, 50) || undefined,
+		},
 	})
 	return NextResponse.json({ result: 'ok' }, { headers: responseHeaders() })
 }

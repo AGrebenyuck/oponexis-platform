@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
 import { normalizePhone } from '@/lib/date'
+import { companionDeviceLabel, companionSmsEnabled, getPrimaryCompanionDevice } from '@/lib/sms/companionSmsClient'
 
 export async function GET(_req, { params }) {
 	try {
@@ -66,8 +67,14 @@ export async function GET(_req, { params }) {
 			}
 		}
 
+		const smsDevice = companionSmsEnabled() ? await getPrimaryCompanionDevice() : null
 		const data = {
 			...campaign,
+			smsDevice: smsDevice ? {
+				id: smsDevice.id,
+				label: companionDeviceLabel(smsDevice),
+				lastSeenAt: smsDevice.lastSeenAt,
+			} : null,
 			recipients: campaign.recipients.map(recipient => {
 				const phone = normalizePhone(recipient.phone)
 				const merged = [

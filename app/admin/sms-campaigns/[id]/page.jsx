@@ -580,6 +580,12 @@ export default function SmsCampaignPage() {
 				</div>
 			</div>
 
+			{campaign.smsDevice ? (
+				<div className='rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900'>
+					<span className='font-bold'>Urządzenie wysyłające:</span> {campaign.smsDevice.label}
+				</div>
+			) : null}
+
 			<div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-6'>
 				{[
 					['Odbiorcy', stats.total],

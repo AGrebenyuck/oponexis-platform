@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getPlatformAuthOverview, readPlatformSession } from '@/lib/platform-auth'
 import PlatformSettingsClient from './PlatformSettingsClient'
+import CompanionDevicesPanel from '../sms-campaigns/CompanionDevicesPanel'
+import { db } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +19,12 @@ function formatDate(value) {
 export default async function PlatformSettingsPage() {
 	const session = await readPlatformSession()
 	if (session?.role !== 'SUPERADMIN') redirect('/admin/dashboard')
-	const { credentials, setting, sessions } = await getPlatformAuthOverview()
+	const [{ credentials, setting, sessions }, devices] = await Promise.all([
+		getPlatformAuthOverview(),
+		db.mobilePushDevice.findMany({
+			orderBy: [{ smsPrimary: 'desc' }, { lastSeenAt: 'desc' }],
+		}),
+	])
 	const orderedCredentials = ['ADMIN', 'SUPERADMIN'].map(role => {
 		const credential = credentials.find(item => item.role === role)
 		return {
@@ -52,6 +59,14 @@ export default async function PlatformSettingsPage() {
 					current: item.id === session.sessionId,
 				}))}
 			/>
+			<CompanionDevicesPanel initialDevices={devices.map(device => ({
+				...device,
+				createdAt: device.createdAt.toISOString(),
+				updatedAt: device.updatedAt.toISOString(),
+				lastSeenAt: device.lastSeenAt.toISOString(),
+				lastSmsAt: device.lastSmsAt?.toISOString() || null,
+				installationId: `${device.installationId.slice(0, 8)}…${device.installationId.slice(-6)}`,
+			}))} />
 		</section>
 	)
 }

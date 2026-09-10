@@ -4,6 +4,8 @@ import {
 	checkSmsGateConnection,
 	smsGateConfigured,
 } from '@/lib/sms/smsGateClient'
+import { companionSmsEnabled, getPrimaryCompanionDevice } from '@/lib/sms/companionSmsClient'
+import { db } from '@/lib/prisma'
 
 function errorResponse(status, code, retryable, correlationId) {
 	return NextResponse.json(
@@ -28,6 +30,25 @@ export async function GET(request) {
 	}
 	if (authorization !== 'authorized') {
 		return errorResponse(401, 'unauthorized', false, correlationId)
+	}
+
+	if (companionSmsEnabled()) {
+		const device = await getPrimaryCompanionDevice()
+		if (!device) return errorResponse(503, 'companion_sms_device_not_registered', true, correlationId)
+		return NextResponse.json({
+			result: 'ok',
+			status: 'ready',
+			profile: 'companion',
+			deviceIdConfigured: true,
+			deviceIdUsed: true,
+			simNumber: device.simSlot,
+			phoneNumber: device.phoneNumber,
+			deviceName: device.label || [device.manufacturer, device.model].filter(Boolean).join(' ') || 'Oponexis Companion',
+			deviceLastSeen: device.lastSeenAt.toISOString(),
+			deviceAgeSeconds: Math.max(0, Math.round((Date.now() - device.lastSeenAt.getTime()) / 1000)),
+			checkedAt: new Date().toISOString(),
+			correlationId,
+		}, { headers: responseHeaders() })
 	}
 
 	const profile = process.env.SMSGATE_FORM_PROFILE

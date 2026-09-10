@@ -83,7 +83,9 @@ export default async function SegmentsPage({ searchParams }) {
 		year: String(params?.year || ''),
 	}
 
-	const rows = (await getCustomerAnalyticsRows()).filter(isActiveCustomerRow)
+	const rows = (
+		await getCustomerAnalyticsRows({ includeTests: process.env.NODE_ENV !== 'production' })
+	).filter(isActiveCustomerRow)
 	const sources = groupCounts(rows.map(row => row.source), 100).map(item => item.label)
 	const services = groupCounts(rows.flatMap(row => row.services), 100).map(item => item.label)
 	const years = Array.from(

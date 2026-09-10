@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { dateInputValue } from '@/lib/date'
 
 export default function WorkOrderEditInner() {
 	const searchParams = useSearchParams()
@@ -67,9 +68,7 @@ export default function WorkOrderEditInner() {
 					carModel: order.carModel || '',
 					address: order.address || '',
 					notes: order.notes || '',
-					visitDate: order.visitDate
-						? new Date(order.visitDate).toISOString().slice(0, 10)
-						: '',
+					visitDate: dateInputValue(order.visitDate),
 					visitTime: order.visitTime || '',
 					wheelRimSize: order.wheelRimSize || '',
 					tireSize: order.tireSize || '',
