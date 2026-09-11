@@ -3,7 +3,10 @@ import { upsertCustomerFromContact } from '@/lib/customer'
 import { normalizeCustomerSource } from '@/lib/customer-sources'
 import { normalizeOptionalText, normalizePhone, parseYmdToUtcDate } from '@/lib/date'
 import { db } from '@/lib/prisma'
-import { queueGoogleAdsOfflineConversion } from '@/lib/google-ads-offline-conversions'
+import {
+	processGoogleAdsOfflineConversions,
+	queueGoogleAdsOfflineConversion,
+} from '@/lib/google-ads-offline-conversions'
 import {
 	getCustomCompletionQuestions,
 	normalizeCustomAnswerValue,
@@ -241,6 +244,9 @@ export async function POST(req, { params }) {
 		)
 
 		after(async () => {
+			await processGoogleAdsOfflineConversions(1).catch(error =>
+				console.error('[completion google ads import]', error)
+			)
 			await updateWorkOrderMessage(updatedOrder).catch(error =>
 				console.error('[completion telegram update]', error)
 			)
