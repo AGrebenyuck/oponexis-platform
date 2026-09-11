@@ -3,6 +3,7 @@ import { upsertCustomerFromContact } from '@/lib/customer'
 import { normalizeCustomerSource } from '@/lib/customer-sources'
 import { normalizeOptionalText, normalizePhone, parseYmdToUtcDate } from '@/lib/date'
 import { db } from '@/lib/prisma'
+import { queueGoogleAdsOfflineConversion } from '@/lib/google-ads-offline-conversions'
 import {
 	getCustomCompletionQuestions,
 	normalizeCustomAnswerValue,
@@ -234,6 +235,10 @@ export async function POST(req, { params }) {
 						: order.status,
 			},
 		})
+
+		await queueGoogleAdsOfflineConversion({ completion, order }).catch(error =>
+			console.error('[completion google ads queue]', error)
+		)
 
 		after(async () => {
 			await updateWorkOrderMessage(updatedOrder).catch(error =>

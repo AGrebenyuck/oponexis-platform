@@ -304,11 +304,40 @@ model WorkOrderCompletion {
   rawData       Json?
 
   customAnswers CompletionFormAnswer[]
+  googleAdsOfflineConversion GoogleAdsOfflineConversion?
 
   @@index([customerId])
   @@index([workOrderId])
   @@index([phone])
   @@index([completedAt])
+}
+
+model GoogleAdsOfflineConversion {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  completionId String @unique
+  completion   WorkOrderCompletion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  workOrderId  Int?
+
+  gclid  String?
+  wbraid String?
+  gbraid String?
+
+  conversionAt DateTime
+  value        Float
+  currency     String   @default("PLN")
+  transactionId String  @unique
+
+  status       String   @default("PENDING_CONFIGURATION")
+  attemptCount Int      @default(0)
+  lastError    String?
+  requestId    String?
+  sentAt       DateTime?
+
+  @@index([status, createdAt])
+  @@index([workOrderId])
 }
 
 model CompletionFormQuestion {
