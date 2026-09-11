@@ -113,6 +113,8 @@ model Lead {
   firstTouchReferrer    String?
   firstTouchLandingPage String?
   firstTouchGclid       String?
+  firstTouchWbraid      String?
+  firstTouchGbraid      String?
   firstTouchFbclid      String?
   firstTouchTtclid      String?
   firstTouchMsclkid     String?
@@ -206,6 +208,21 @@ model WorkOrder {
   phone   String
   service String?
   status  String  @default("new")
+
+  firstTouchSource      String?
+  firstTouchMedium      String?
+  firstTouchCampaign    String?
+  firstTouchContent     String?
+  firstTouchTerm        String?
+  firstTouchReferrer    String?
+  firstTouchLandingPage String?
+  firstTouchGclid       String?
+  firstTouchWbraid      String?
+  firstTouchGbraid      String?
+  firstTouchFbclid      String?
+  firstTouchTtclid      String?
+  firstTouchMsclkid     String?
+  firstTouchAt          DateTime?
 
   regNumber String?
   color     String?

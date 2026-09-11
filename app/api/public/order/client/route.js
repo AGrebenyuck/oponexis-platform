@@ -6,7 +6,11 @@ import {
 } from '@/lib/date'
 import { upsertCustomerFromContact } from '@/lib/customer'
 import { normalizeCustomerSource } from '@/lib/customer-sources'
-import { canonicalSourceFromAttribution, normalizeFirstTouch } from '@/lib/attribution'
+import {
+	canonicalSourceFromAttribution,
+	firstTouchLeadData,
+	normalizeFirstTouch,
+} from '@/lib/attribution'
 import { db } from '@/lib/prisma'
 import { sendFormCompletedSms } from '@/lib/sms/formSms'
 import {
@@ -145,6 +149,7 @@ export async function POST(req) {
 		const data = {
 			leadId: leadId || null,
 			customerId: customer?.id || null,
+			...firstTouchLeadData(attribution),
 			name: name.trim(),
 			phone: normalizedPhone,
 			service: service || null,
