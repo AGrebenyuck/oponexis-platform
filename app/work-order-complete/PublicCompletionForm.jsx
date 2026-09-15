@@ -176,7 +176,7 @@ export default function PublicCompletionForm({
 					<textarea name='notes' rows={3} defaultValue={defaults.notes} />
 				</Field>
 
-				<label className='opx-check' style={{ marginTop: 4 }}>
+				<label className='opx-check' style={{ marginTop: 4, marginBottom: 18 }}>
 					<input type='checkbox' name='sendReviewRequest' />
 					<span>Wyślij SMS z prośbą o opinię Google</span>
 				</label>
