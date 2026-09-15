@@ -55,6 +55,7 @@ const emptyForm = {
 	invoiceIssued: '',
 	paymentMethod: '',
 	notes: '',
+	sendReviewRequest: false,
 }
 
 function dateInput(value) {
@@ -167,6 +168,7 @@ export default function WorkOrderCompletionForm() {
 							: 'false',
 					paymentMethod: completion?.paymentMethod || '',
 					notes: completion?.notes || '',
+					sendReviewRequest: false,
 				})
 				setError('')
 				setSuccess('')
@@ -415,6 +417,16 @@ export default function WorkOrderCompletionForm() {
 							className='opx-input resize-none'
 						/>
 					</Field>
+
+					<label className='flex items-center gap-2 text-sm font-semibold text-[#132c43]'>
+						<input
+							type='checkbox'
+							checked={form.sendReviewRequest}
+							onChange={event => update('sendReviewRequest', event.target.checked)}
+							className='h-4 w-4 accent-[#fd6d02]'
+						/>
+						<span>Wyślij SMS z prośbą o opinię Google</span>
+					</label>
 
 					{error ? <p className='text-sm font-semibold text-red-600'>{error}</p> : null}
 					{success ? (

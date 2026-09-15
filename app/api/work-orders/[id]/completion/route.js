@@ -17,6 +17,7 @@ import {
 	updateScheduleMessage,
 	updateWorkOrderMessage,
 } from '@/lib/telegram'
+import { sendReviewRequestSms } from '@/lib/sms/formSms'
 
 function parseAmount(value) {
 	const amount = Number(String(value || '').replace(',', '.'))
@@ -80,6 +81,7 @@ async function parseBody(req) {
 			invoiceIssued: form.get('invoiceIssued') || '',
 			paymentMethod: form.get('paymentMethod') || '',
 			notes: form.get('notes') || '',
+			sendReviewRequest: form.get('sendReviewRequest') === 'on',
 			customQuestions,
 			customAnswers,
 		}
@@ -244,6 +246,14 @@ export async function POST(req, { params }) {
 		)
 
 		after(async () => {
+			if (body.sendReviewRequest) {
+				await sendReviewRequestSms({
+					phone: normalizedPhone,
+					name: body.name || order.name,
+					workOrderId: order.id,
+					profile: process.env.SMSGATE_FORM_PROFILE,
+				}).catch(error => console.error('[completion review sms]', error))
+			}
 			await processGoogleAdsOfflineConversions(1).catch(error =>
 				console.error('[completion google ads import]', error)
 			)
