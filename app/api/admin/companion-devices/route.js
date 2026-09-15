@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { mobileDeviceEnvironmentWhere } from '@/lib/mobile-environment'
 import { db } from '@/lib/prisma'
 
 function serialize(device) {
@@ -14,6 +15,7 @@ function serialize(device) {
 
 export async function GET() {
 	const devices = await db.mobilePushDevice.findMany({
+		where: mobileDeviceEnvironmentWhere(),
 		orderBy: [{ smsPrimary: 'desc' }, { lastSeenAt: 'desc' }],
 	})
 	return NextResponse.json({ success: true, data: devices.map(serialize) })
@@ -30,9 +32,14 @@ export async function PATCH(request) {
 		const enabled = body.enabled !== false
 		const smsPrimary = Boolean(body.smsPrimary)
 		const updated = await db.$transaction(async transaction => {
+			const existing = await transaction.mobilePushDevice.findFirst({
+				where: { id, ...mobileDeviceEnvironmentWhere() },
+				select: { id: true },
+			})
+			if (!existing) throw new Error('Companion device is outside the current environment.')
 			if (smsPrimary) {
 				await transaction.mobilePushDevice.updateMany({
-					where: { smsPrimary: true, id: { not: id } },
+					where: { smsPrimary: true, id: { not: id }, ...mobileDeviceEnvironmentWhere() },
 					data: { smsPrimary: false },
 				})
 			}

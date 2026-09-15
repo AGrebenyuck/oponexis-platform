@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getPlatformAuthOverview, readPlatformSession } from '@/lib/platform-auth'
 import PlatformSettingsClient from './PlatformSettingsClient'
 import CompanionDevicesPanel from '../sms-campaigns/CompanionDevicesPanel'
+import { mobileDeviceEnvironmentWhere } from '@/lib/mobile-environment'
 import { db } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,7 @@ export default async function PlatformSettingsPage() {
 	const [{ credentials, setting, sessions }, devices] = await Promise.all([
 		getPlatformAuthOverview(),
 		db.mobilePushDevice.findMany({
+			where: mobileDeviceEnvironmentWhere(),
 			orderBy: [{ smsPrimary: 'desc' }, { lastSeenAt: 'desc' }],
 		}),
 	])

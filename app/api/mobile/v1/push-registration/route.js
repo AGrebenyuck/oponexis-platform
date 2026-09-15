@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server'
 import { authorizeMobileRequest, responseHeaders } from '@/lib/mobile-api'
+import { allowedMobileAppIds, mobileDeviceEnvironmentWhere } from '@/lib/mobile-environment'
 import { db } from '@/lib/prisma'
-
-const ALLOWED_APP_IDS = new Set([
-	'com.oponexis.companion',
-	'com.oponexis.companion.dev',
-])
 
 function errorResponse(status, code) {
 	return NextResponse.json(
@@ -27,7 +23,7 @@ export async function POST(request) {
 	}
 	const installationId = typeof body?.installationId === 'string' ? body.installationId.trim() : ''
 	const appId = typeof body?.appId === 'string' ? body.appId.trim() : ''
-	if (installationId.length < 16 || installationId.length > 256 || !ALLOWED_APP_IDS.has(appId)) {
+	if (installationId.length < 16 || installationId.length > 256 || !allowedMobileAppIds().includes(appId)) {
 		return errorResponse(422, 'invalid_push_registration')
 	}
 
@@ -63,6 +59,9 @@ export async function DELETE(request) {
 	}
 	const installationId = typeof body?.installationId === 'string' ? body.installationId.trim() : ''
 	if (!installationId) return errorResponse(422, 'invalid_push_registration')
-	await db.mobilePushDevice.updateMany({ where: { installationId }, data: { enabled: false } })
+	await db.mobilePushDevice.updateMany({
+		where: { installationId, ...mobileDeviceEnvironmentWhere() },
+		data: { enabled: false },
+	})
 	return NextResponse.json({ result: 'ok' }, { headers: responseHeaders() })
 }

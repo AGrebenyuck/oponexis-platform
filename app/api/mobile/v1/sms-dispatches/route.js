@@ -3,6 +3,7 @@ import { authorizeMobileRequest, responseHeaders } from '@/lib/mobile-api'
 import { db } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { companionProviderMessageId } from '@/lib/sms/companionSmsClient'
+import { mobileDeviceEnvironmentWhere } from '@/lib/mobile-environment'
 import { recordIncomingSms, recordSmsDeliveryEvent } from '@/lib/sms/smsContactEvents'
 
 const CLAIM_LIMIT = 20
@@ -24,7 +25,7 @@ async function activeDevice(request) {
 	const id = installationId(request)
 	if (id.length < 16 || id.length > 256) return null
 	return db.mobilePushDevice.findFirst({
-		where: { installationId: id, enabled: true },
+		where: { installationId: id, enabled: true, ...mobileDeviceEnvironmentWhere() },
 		select: { id: true, installationId: true },
 	})
 }
