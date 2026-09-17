@@ -1,0 +1,19 @@
+ALTER TABLE "Lead"
+  ADD COLUMN IF NOT EXISTS "firstTouchWbraid" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchGbraid" TEXT;
+
+ALTER TABLE "WorkOrder"
+  ADD COLUMN IF NOT EXISTS "firstTouchSource" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchMedium" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchCampaign" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchContent" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchTerm" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchReferrer" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchLandingPage" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchGclid" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchWbraid" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchGbraid" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchFbclid" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchTtclid" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchMsclkid" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstTouchAt" TIMESTAMP(3);
