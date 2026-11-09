@@ -5,9 +5,10 @@ import { Prisma } from '@prisma/client'
 import { companionProviderMessageId } from '@/lib/sms/companionSmsClient'
 import { mobileDeviceEnvironmentWhere } from '@/lib/mobile-environment'
 import { recordIncomingSms, recordSmsDeliveryEvent } from '@/lib/sms/smsContactEvents'
+import { publishMobileSmsDispatch } from '@/lib/mobile-push'
 
-const CLAIM_LIMIT = 20
-const CLAIM_TTL_MS = 5 * 60 * 1000
+const CLAIM_LIMIT = 1
+const CLAIM_TTL_MS = 15 * 60 * 1000
 const REPORT_STATUSES = new Set(['SENT', 'DELIVERED', 'FAILED'])
 
 function errorResponse(status, code, retryable = status >= 500) {
@@ -39,29 +40,41 @@ export async function GET(request) {
 
 	const now = new Date()
 	const expiredAt = new Date(now.getTime() - CLAIM_TTL_MS)
-	const items = await db.$queryRaw(Prisma.sql`
-		WITH candidates AS (
-			SELECT "id"
-			FROM "MobileSmsDispatch"
-			WHERE (
-				"status" = 'QUEUED'
-				OR ("status" = 'CLAIMED' AND "claimedAt" < ${expiredAt})
+	const items = await db.$transaction(async tx => {
+		// Serialize claims for this device so concurrent polls cannot queue multiple SMS.
+		await tx.$queryRaw(Prisma.sql`
+			SELECT "id" FROM "MobilePushDevice" WHERE "id" = ${device.id} FOR UPDATE
+		`)
+		await tx.mobileSmsDispatch.updateMany({
+			where: { deviceId: device.id, status: 'CLAIMED', claimedAt: { lt: expiredAt } },
+			data: { status: 'UNCERTAIN', error: 'Telefon nie zgłosił wyniku wysyłki. Sprawdź wiadomość na urządzeniu przed ponowieniem.' },
+		})
+		return tx.$queryRaw(Prisma.sql`
+			WITH candidate AS (
+				SELECT dispatch."id"
+				FROM "MobileSmsDispatch" AS dispatch
+				WHERE dispatch."status" = 'QUEUED'
+				AND (dispatch."deviceId" IS NULL OR dispatch."deviceId" = ${device.id})
+				AND NOT EXISTS (
+					SELECT 1 FROM "MobileSmsDispatch" AS active
+					WHERE active."deviceId" = ${device.id} AND active."status" = 'CLAIMED'
+				)
+				ORDER BY dispatch."createdAt" ASC
+				FOR UPDATE SKIP LOCKED
+				LIMIT ${CLAIM_LIMIT}
 			)
-			AND ("deviceId" IS NULL OR "deviceId" = ${device.id})
-			ORDER BY "createdAt" ASC
-			FOR UPDATE SKIP LOCKED
-			LIMIT ${CLAIM_LIMIT}
-		)
-		UPDATE "MobileSmsDispatch" AS dispatch
-		SET "status" = 'CLAIMED',
-			"claimedBy" = ${device.installationId},
-			"claimedAt" = ${now},
-			"attemptCount" = dispatch."attemptCount" + 1,
-			"updatedAt" = ${now}
-		FROM candidates
-		WHERE dispatch."id" = candidates."id"
-		RETURNING dispatch.*
-	`)
+			UPDATE "MobileSmsDispatch" AS dispatch
+			SET "status" = 'CLAIMED',
+				"deviceId" = ${device.id},
+				"claimedBy" = ${device.installationId},
+				"claimedAt" = ${now},
+				"attemptCount" = dispatch."attemptCount" + 1,
+				"updatedAt" = ${now}
+			FROM candidate
+			WHERE dispatch."id" = candidate."id"
+			RETURNING dispatch.*
+		`)
+	})
 
 	return NextResponse.json({
 		result: 'ok',
@@ -149,5 +162,10 @@ export async function POST(request) {
 		},
 		raw: { provider: 'companion', installationId: device.installationId, source: dispatch.source },
 	})
+	const nextDispatch = await db.mobileSmsDispatch.findFirst({
+		where: { deviceId: device.id, status: 'QUEUED' },
+		orderBy: { createdAt: 'asc' },
+	})
+	if (nextDispatch) await publishMobileSmsDispatch(nextDispatch)
 	return NextResponse.json({ result: 'ok', status: dispatch.status }, { headers: responseHeaders() })
 }

@@ -623,7 +623,7 @@ model MobileSmsDispatch {
   message        String
   source         String
   profile        String?
-  status         String    @default("QUEUED") // QUEUED, CLAIMED, SENT, DELIVERED, FAILED, CANCELLED
+  status         String    @default("QUEUED") // QUEUED, CLAIMED, UNCERTAIN, SENT, DELIVERED, FAILED, CANCELLED
   claimedBy      String?
   claimedAt      DateTime?
   attemptCount   Int       @default(0)

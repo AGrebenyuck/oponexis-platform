@@ -30,6 +30,7 @@ const STATUS_LABELS = {
 	SENT: 'Wysłano',
 	DELIVERED: 'Dostarczono',
 	FAILED: 'Błąd',
+	UNCERTAIN: 'Do weryfikacji',
 	PAUSED: 'Wstrzymana do sprawdzenia',
 	CANCELLED: 'Anulowane',
 	BOOKED: 'Umówiony',
@@ -82,6 +83,14 @@ const PIPELINE_COLUMNS = [
 		statuses: ['QUEUED', 'PROCESSED', 'SENT', 'DELIVERED'],
 		targetStatus: 'SENT',
 		accent: 'border-sky-300',
+	},
+	{
+		id: 'uncertain',
+		title: 'Do weryfikacji',
+		description: 'sprawdź telefon przed ponowieniem',
+		statuses: ['UNCERTAIN'],
+		targetStatus: null,
+		accent: 'border-amber-300',
 	},
 	{
 		id: 'interested',
@@ -249,7 +258,7 @@ export default function SmsCampaignPage() {
 	const [sendingSingleSms, setSendingSingleSms] = useState(false)
 	const statusSyncInFlight = useRef(false)
 	const hasPendingProviderStatus = (campaign?.recipients || []).some(item =>
-		['QUEUED', 'PROCESSED', 'SENT'].includes(item.status) && item.providerMessageId
+		['QUEUED', 'PROCESSED', 'SENT', 'UNCERTAIN'].includes(item.status) && item.providerMessageId
 	)
 
 	useEffect(() => {
@@ -324,6 +333,7 @@ export default function SmsCampaignPage() {
 			queued: count('QUEUED') + count('PROCESSED'),
 			delivered: count('DELIVERED'),
 			failed: count('FAILED'),
+			uncertain: count('UNCERTAIN'),
 			booked: count('BOOKED'),
 			callback: count('CALL_BACK'),
 			declined: count('DECLINED'),
@@ -698,6 +708,11 @@ export default function SmsCampaignPage() {
 						{stats.queued} SMS czekają na potwierdzenie z telefonu Companion. „Odśwież statusy” pobiera ich stan, ale niczego nie wysyła ponownie.
 					</p>
 				) : null}
+				{stats.uncertain ? (
+					<p className='mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950'>
+						{stats.uncertain} SMS bez potwierdzenia z telefonu. Sprawdź ich status w aplikacji SMS na urządzeniu; ponawiaj ręcznie dopiero po upewnieniu się, że wiadomość nie została wysłana.
+					</p>
+				) : null}
 				{campaign.status === 'PAUSED' ? (
 					<p className='mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900'>
 						Wysyłka została wstrzymana po błędach lub problemie z zapisem wyniku. Sprawdź przyczyny przy odbiorcach, zweryfikuj statusy wiadomości w kolejce i dopiero potem wybierz „Wznów / ponów błędne”.
@@ -714,6 +729,7 @@ export default function SmsCampaignPage() {
 					['Odpowiedzi SMS', stats.smsReplies],
 					['Rozmowy z wynikiem', stats.callOutcomes],
 					['Błędy', stats.failed],
+					['Do weryfikacji', stats.uncertain],
 					['Umówieni', stats.booked],
 					['Oddzwonić', stats.callback],
 				].map(([label, value]) => (
