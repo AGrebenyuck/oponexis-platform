@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Button from '../../_components/ui/Button'
 import Spin from '../../_components/ui/Spin'
@@ -30,12 +30,24 @@ const STATUS_LABELS = {
 	SENT: 'Wysłano',
 	DELIVERED: 'Dostarczono',
 	FAILED: 'Błąd',
+	PAUSED: 'Wstrzymana do sprawdzenia',
 	CANCELLED: 'Anulowane',
 	BOOKED: 'Umówiony',
 	DECLINED: 'Odmowa',
 	CALL_BACK: 'Oddzwonić',
 	NO_ANSWER: 'Nie odebrał',
 	INTERESTED: 'Zainteresowany',
+}
+
+const CAMPAIGN_STATUS_LABELS = {
+	DRAFT: 'Szkic',
+	SCHEDULED: 'Zaplanowana',
+	PROCESSING: 'Wysyłanie pakietu',
+	RUNNING: 'Wysyłka trwa',
+	PAUSED: 'Wstrzymana do sprawdzenia',
+	FAILED: 'Z błędami',
+	COMPLETED: 'Zakończona',
+	CANCELLED: 'Anulowana',
 }
 
 const ACTION_STATUSES = [
@@ -106,7 +118,7 @@ const PIPELINE_COLUMNS = [
 ]
 
 function isLiveStatus(status) {
-	return ['RUNNING', 'SCHEDULED'].includes(status)
+	return ['RUNNING', 'PROCESSING', 'SCHEDULED'].includes(status)
 }
 
 function latestEvent(recipient) {
@@ -234,6 +246,7 @@ export default function SmsCampaignPage() {
 	const [smsRecipient, setSmsRecipient] = useState(null)
 	const [smsMessage, setSmsMessage] = useState('')
 	const [sendingSingleSms, setSendingSingleSms] = useState(false)
+	const statusSyncInFlight = useRef(false)
 
 	useEffect(() => {
 		if (!id) return
@@ -243,10 +256,26 @@ export default function SmsCampaignPage() {
 
 	useEffect(() => {
 		if (!id || !campaign || !isLiveStatus(campaign.status)) return
-		const interval = window.setInterval(() => {
-			syncStatuses({ silent: true })
-		}, 7000)
-		return () => window.clearInterval(interval)
+		let active = true
+		let progressTimer
+		let statusTimer
+		const refreshProgress = async () => {
+			await load({ silent: true })
+			if (active) progressTimer = window.setTimeout(refreshProgress, 2000)
+		}
+		const refreshStatuses = async () => {
+			const staleProcessing = campaign.status === 'PROCESSING' && campaign.startedAt &&
+				Date.now() - new Date(campaign.startedAt).getTime() > 120_000
+			if (campaign.status === 'RUNNING' || staleProcessing) await syncStatuses({ silent: true })
+			if (active) statusTimer = window.setTimeout(refreshStatuses, 20000)
+		}
+		progressTimer = window.setTimeout(refreshProgress, 2000)
+		statusTimer = window.setTimeout(refreshStatuses, 20000)
+		return () => {
+			active = false
+			window.clearTimeout(progressTimer)
+			window.clearTimeout(statusTimer)
+		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [id, campaign?.status])
 
@@ -275,14 +304,20 @@ export default function SmsCampaignPage() {
 	const stats = useMemo(() => {
 		const recipients = campaign?.recipients || []
 		const count = status => recipients.filter(item => item.status === status).length
+		const hasCampaignEvent = (recipient, type) =>
+			(recipient.contactEvents || []).some(event =>
+				event.type === type && (event.campaignId === campaign?.id || event.recipientId === recipient.id)
+			)
 		const sent = recipients.filter(item =>
-			['QUEUED', 'PROCESSED', 'SENT', 'DELIVERED', 'BOOKED', 'INTERESTED', 'CALL_BACK'].includes(
+			['QUEUED', 'PROCESSED', 'SENT', 'DELIVERED', 'BOOKED', 'INTERESTED', 'CALL_BACK', 'NO_ANSWER', 'DECLINED'].includes(
 				item.status
 			)
 		).length
 
 		return {
 			total: recipients.length,
+			processed: recipients.filter(item => item.status !== 'PENDING').length,
+			pending: count('PENDING'),
 			sent,
 			delivered: count('DELIVERED'),
 			failed: count('FAILED'),
@@ -291,8 +326,20 @@ export default function SmsCampaignPage() {
 			declined: count('DECLINED'),
 			interested: count('INTERESTED'),
 			noAnswer: count('NO_ANSWER'),
+			smsReplies: recipients.filter(item => hasCampaignEvent(item, 'sms_received')).length,
+			callOutcomes: recipients.filter(item => hasCampaignEvent(item, 'call_outcome')).length,
 		}
-	}, [campaign?.recipients])
+	}, [campaign?.id, campaign?.recipients])
+	const progressPercent = stats.total ? Math.round((stats.processed / stats.total) * 100) : 0
+	const processingIsStale = campaign?.status === 'PROCESSING' && campaign.startedAt &&
+		lastUpdatedAt && Date.now() - new Date(campaign.startedAt).getTime() > 120_000
+
+	useEffect(() => {
+		if (!(campaign?.status === 'RUNNING' || processingIsStale) || !stats.pending || starting) return
+		const timer = window.setTimeout(() => start(), 800)
+		return () => window.clearTimeout(timer)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [campaign?.status, stats.pending, starting, processingIsStale, lastUpdatedAt])
 
 	const pipelineColumns = useMemo(() => {
 		const recipients = campaign?.recipients || []
@@ -339,6 +386,10 @@ export default function SmsCampaignPage() {
 				method: 'POST',
 			})
 			const json = await res.json()
+			if (res.status === 409) {
+				await load({ silent: true })
+				return
+			}
 			if (!res.ok || !json.success) throw new Error(json.error || 'Błąd wysyłki')
 			await syncStatuses({ silent: true })
 		} catch (startError) {
@@ -349,6 +400,8 @@ export default function SmsCampaignPage() {
 	}
 
 	async function syncStatuses({ silent = false } = {}) {
+		if (statusSyncInFlight.current) return
+		statusSyncInFlight.current = true
 		if (!silent) setSyncing(true)
 		setError('')
 		try {
@@ -363,6 +416,7 @@ export default function SmsCampaignPage() {
 		} catch (syncError) {
 			if (!silent) setError(syncError.message)
 		} finally {
+			statusSyncInFlight.current = false
 			if (!silent) setSyncing(false)
 		}
 	}
@@ -544,7 +598,7 @@ export default function SmsCampaignPage() {
 				<div>
 					<h1 className='text-2xl font-semibold text-white'>{campaign.name}</h1>
 					<p className='text-sm text-[#d7e4ef]'>
-						{campaign.status} · {campaign.recipients.length} odbiorców
+						{CAMPAIGN_STATUS_LABELS[campaign.status] || campaign.status} · {campaign.recipients.length} odbiorców
 					</p>
 					{lastUpdatedAt ? (
 						<p className='text-xs text-[#9fb3c4]'>
@@ -570,15 +624,23 @@ export default function SmsCampaignPage() {
 						onClick={start}
 						loading={starting}
 						disabled={
+							starting || campaign.status === 'RUNNING' ||
+							(campaign.status === 'PROCESSING' && !processingIsStale) ||
 							!campaign.recipients.some(item =>
 								['PENDING', 'FAILED'].includes(item.status)
 							)
 						}
 					>
-						Start wysyłki
+						{['PAUSED', 'FAILED'].includes(campaign.status) ? 'Wznów / ponów błędne' : 'Start wysyłki'}
 					</Button>
 				</div>
 			</div>
+
+			{campaign.filters?.smsCampaignTestMode ? (
+				<div className='rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900'>
+					Ta kampania została utworzona w trybie testowym i może zawierać odbiorców bez aktywnej zgody SMS. Serwer musi mieć aktywny SMS_CAMPAIGN_TEST_MODE, aby ją uruchomić.
+				</div>
+			) : null}
 
 			{campaign.smsDevice ? (
 				<div className='rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900'>
@@ -586,11 +648,37 @@ export default function SmsCampaignPage() {
 				</div>
 			) : null}
 
-			<div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-6'>
+			<div className='opx-panel rounded-md p-4'>
+				<div className='flex items-center justify-between gap-3 text-sm'>
+					<p className='font-bold text-[#132c43]'>Postęp wysyłki</p>
+					<p className='text-[#5f7487]'>
+						{stats.processed} / {stats.total} · {stats.pending} oczekuje
+					</p>
+				</div>
+				<div
+					className='mt-2 h-2 overflow-hidden rounded-full bg-[#e6edf3]'
+					role='progressbar'
+					aria-label='Postęp kampanii SMS'
+					aria-valuemin={0}
+					aria-valuemax={stats.total}
+					aria-valuenow={stats.processed}
+				>
+					<div className='h-full rounded-full bg-[#fd6d02] transition-all' style={{ width: `${progressPercent}%` }} />
+				</div>
+				{campaign.status === 'PAUSED' ? (
+					<p className='mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900'>
+						Wysyłka została wstrzymana po błędach lub problemie z zapisem wyniku. Sprawdź przyczyny przy odbiorcach, zweryfikuj statusy wiadomości w kolejce i dopiero potem wybierz „Wznów / ponów błędne”.
+					</p>
+				) : null}
+			</div>
+
+			<div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
 				{[
 					['Odbiorcy', stats.total],
 					['Wysłane/kolejka', stats.sent],
 					['Dostarczone', stats.delivered],
+					['Odpowiedzi SMS', stats.smsReplies],
+					['Rozmowy z wynikiem', stats.callOutcomes],
 					['Błędy', stats.failed],
 					['Umówieni', stats.booked],
 					['Oddzwonić', stats.callback],

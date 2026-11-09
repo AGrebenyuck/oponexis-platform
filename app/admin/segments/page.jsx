@@ -5,9 +5,10 @@ import {
 	groupCounts,
 	isActiveCustomerRow,
 } from '@/lib/crmAnalytics'
-import { seasonPeriodLabel } from '@/lib/season'
+import { currentSeason, seasonPeriodLabel, seasonYearFromDate } from '@/lib/season'
 import SegmentsAudience from './SegmentsAudience'
 import SegmentFilters from './SegmentFilters'
+import { smsCampaignTestModeEnabled } from '@/lib/sms/smsCampaignTestMode'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +28,16 @@ function matches(row, filters) {
 	if (filters.storage === 'no' && row.hasStorage) return false
 	if (filters.marketingSms === 'yes' && !row.marketingSmsAccepted) return false
 	if (filters.marketingSms === 'no' && row.marketingSmsAccepted) return false
+	if (filters.notInCurrentSeason === 'yes' && row.seasons.includes(filters.currentSeasonKey)) return false
+	if (filters.minSeasonsAway) {
+		const seasonIndex = season => ({ spring: 1, summer: 2, autumn: 3, winter: 4 })[season] || 0
+		const targetIndex = Number(filters.currentSeasonYear) * 4 + seasonIndex(filters.currentSeason)
+		const lastSeasonIndex = Math.max(...row.seasons.map(value => {
+			const [season, year] = value.split(':')
+			return Number(year) * 4 + seasonIndex(season)
+		}))
+		if (!Number.isFinite(lastSeasonIndex) || targetIndex - lastSeasonIndex < Number(filters.minSeasonsAway)) return false
+	}
 	if (filters.minOrders && row.totalOrders < Number(filters.minOrders)) return false
 	if (filters.minSpent && row.totalSpent < Number(filters.minSpent)) return false
 	if (filters.from || filters.to) {
@@ -74,6 +85,8 @@ export default async function SegmentsPage({ searchParams }) {
 		repeat: String(params?.repeat || ''),
 		storage: String(params?.storage || ''),
 		marketingSms: String(params?.marketingSms || ''),
+		notInCurrentSeason: String(params?.notInCurrentSeason || ''),
+		minSeasonsAway: String(params?.minSeasonsAway || ''),
 		minOrders: String(params?.minOrders || ''),
 		minSpent: String(params?.minSpent || ''),
 		from: String(params?.from || ''),
@@ -81,6 +94,14 @@ export default async function SegmentsPage({ searchParams }) {
 		seasonKey: String(params?.seasonKey || ''),
 		season: String(params?.season || ''),
 		year: String(params?.year || ''),
+	}
+	const currentSeasonValue = currentSeason()
+	const currentSeasonYear = seasonYearFromDate(new Date())
+	const segmentFilters = {
+		...filters,
+		currentSeason: currentSeasonValue,
+		currentSeasonYear: String(currentSeasonYear),
+		currentSeasonKey: `${currentSeasonValue}:${currentSeasonYear}`,
 	}
 
 	const rows = (
@@ -100,7 +121,7 @@ export default async function SegmentsPage({ searchParams }) {
 			if (a.year !== b.year) return b.year - a.year
 			return a.season.localeCompare(b.season)
 		})
-	const filtered = rows.filter(row => matches(row, filters))
+	const filtered = rows.filter(row => matches(row, segmentFilters))
 	const totalSpent = filtered.reduce((sum, row) => sum + row.totalSpent, 0)
 	const repeatCount = filtered.filter(row => row.totalOrders >= 2).length
 	const storageCount = filtered.filter(row => row.hasStorage).length
@@ -126,6 +147,11 @@ export default async function SegmentsPage({ searchParams }) {
 			href: presetHref({ repeat: 'no' }),
 			hint: 'Osoby po jednym zleceniu, dobre pod powrót.',
 		},
+		{
+			label: `Do kontaktu w sezonie ${seasonPeriodLabel(currentSeasonValue, currentSeasonYear)}`,
+			href: presetHref({ notInCurrentSeason: 'yes', minSeasonsAway: '1', marketingSms: 'yes' }),
+				hint: 'Brak realizacji w bieżącym sezonie, co najmniej jeden sezon przerwy i aktywna zgoda SMS.',
+		},
 	]
 
 	return (
@@ -135,6 +161,9 @@ export default async function SegmentsPage({ searchParams }) {
 					<h1 className='text-2xl font-semibold text-white'>Segmenty</h1>
 					<p className='text-sm text-[#d7e4ef]'>
 						Podbieraj klientów do kampanii po zachowaniu, źródle, usługach i wartości.
+					</p>
+					<p className='mt-1 text-xs text-[#a9bfd0]'>
+						Bieżący sezon jest ustalany automatycznie według daty w strefie Europe/Warsaw: {seasonPeriodLabel(currentSeasonValue, currentSeasonYear)}.
 					</p>
 				</div>
 			</div>
@@ -175,7 +204,11 @@ export default async function SegmentsPage({ searchParams }) {
 				))}
 			</div>
 
-			<SegmentsAudience rows={filtered} filters={filters} />
+			<SegmentsAudience
+				rows={filtered}
+				filters={filters}
+				testModeEnabled={smsCampaignTestModeEnabled()}
+			/>
 		</section>
 	)
 }

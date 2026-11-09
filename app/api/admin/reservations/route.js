@@ -9,6 +9,7 @@ import {
 	updateScheduleMessage,
 } from '@/lib/telegram'
 import { incompleteCompletionWhere } from '@/lib/work-order-queries'
+import { markSmsCampaignBookedFromWorkOrder } from '@/lib/sms/smsCampaignAttribution'
 
 const ZONE = 'Europe/Warsaw'
 
@@ -153,6 +154,11 @@ export async function POST(req) {
 				visitDate: parseVisitDate(body.visitDate),
 				visitTime: body.visitTime || null,
 			},
+		})
+		await markSmsCampaignBookedFromWorkOrder({
+			phone: created.phone,
+			customerId: created.customerId,
+			workOrderId: created.id,
 		})
 
 		await sendWorkOrderToTelegram(created).catch(error =>

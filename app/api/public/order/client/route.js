@@ -13,6 +13,7 @@ import {
 	normalizeFirstTouch,
 } from '@/lib/attribution'
 import { db } from '@/lib/prisma'
+import { markSmsCampaignBookedFromWorkOrder } from '@/lib/sms/smsCampaignAttribution'
 import { sendFormCompletedSms } from '@/lib/sms/formSms'
 import {
 	markSmsFormCompletedByLead,
@@ -196,6 +197,11 @@ export async function POST(req) {
 		const workOrder = existingOrder
 			? await db.workOrder.update({ where: { id: existingOrder.id }, data })
 			: await db.workOrder.create({ data })
+		await markSmsCampaignBookedFromWorkOrder({
+			phone: workOrder.phone,
+			customerId: workOrder.customerId,
+			workOrderId: workOrder.id,
+		})
 
 		try {
 			if (smsFormLogId) {

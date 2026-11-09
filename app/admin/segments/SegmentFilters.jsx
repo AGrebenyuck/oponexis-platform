@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 function filtersHref(filters) {
 	const params = new URLSearchParams()
 	Object.entries(filters).forEach(([key, value]) => {
+		if (['currentSeason', 'currentSeasonYear', 'currentSeasonKey'].includes(key)) return
 		if (key === 'services') {
 			value.forEach(service => params.append('service', service))
 			return
@@ -128,6 +129,24 @@ export default function SegmentFilters({ initialFilters, sources, services, year
 				options={[
 					{ value: 'yes', label: 'Wyrażona' },
 					{ value: 'no', label: 'Brak lub cofnięta' },
+				]}
+			/>
+			<FilterSelect
+				label='Wizyta w bieżącym sezonie'
+				value={filters.notInCurrentSeason}
+				onChange={value => update('notInCurrentSeason', value)}
+				emptyLabel='Dowolnie'
+				options={[{ value: 'yes', label: 'Nie było wizyty w tym sezonie' }]}
+			/>
+			<FilterSelect
+				label='Sezonów bez wizyty'
+				value={filters.minSeasonsAway}
+				onChange={value => update('minSeasonsAway', value)}
+				emptyLabel='Dowolnie'
+				options={[
+					{ value: '1', label: 'Co najmniej 1' },
+					{ value: '2', label: 'Co najmniej 2' },
+					{ value: '3', label: 'Co najmniej 3' },
 				]}
 			/>
 			<FilterInput

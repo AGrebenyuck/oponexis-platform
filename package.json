@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "node scripts/run-dev.mjs development",
+    "dev:test": "node scripts/run-dev.mjs development",
+    "dev:prod": "node scripts/run-dev.mjs production",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",

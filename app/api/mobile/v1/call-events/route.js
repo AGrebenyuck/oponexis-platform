@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/date'
 import { authorizeMobileRequest, responseHeaders, validRequestId } from '@/lib/mobile-api'
 import { db } from '@/lib/prisma'
+import { recordSmsCampaignCallOutcome } from '@/lib/sms/smsCampaignAttribution'
 
 const MAX_BODY_BYTES = 8192
 const OUTCOMES = new Set([
@@ -90,6 +91,16 @@ export async function POST(request) {
 			if (existing.payloadHash !== payloadHash) {
 				return errorResponse(409, 'idempotency_conflict', false, eventId)
 			}
+			await recordSmsCampaignCallOutcome({
+				eventId,
+				phone,
+				customerId: existing.customerId,
+				outcomeCode: body.attributes.outcomeCode,
+				topicLabel,
+				disconnectCategory: attributes.disconnectCategory,
+				durationBucket: attributes.durationBucket,
+				occurredAt: resolvedAt,
+			})
 			return NextResponse.json(
 				{ result: 'accepted', receiptId: existing.eventId, duplicate: true, correlationId: eventId },
 				{ status: 200, headers: responseHeaders() }
@@ -119,6 +130,16 @@ export async function POST(request) {
 				customerId: customer?.id || null,
 			},
 			select: { eventId: true },
+		})
+		await recordSmsCampaignCallOutcome({
+			eventId,
+			phone,
+			customerId: customer?.id || null,
+			outcomeCode: attributes.outcomeCode,
+			topicLabel,
+			disconnectCategory: attributes.disconnectCategory,
+			durationBucket: attributes.durationBucket,
+			occurredAt: resolvedAt,
 		})
 		return NextResponse.json(
 			{ result: 'accepted', receiptId: event.eventId, duplicate: false, correlationId: eventId },

@@ -18,3 +18,7 @@ Lifecycle states are `sending`, `pending`, `reminder_sending`, `reminded`, `done
 - expiry creates a Telegram lead-chat alert for manager follow-up.
 
 For local development run CRM on port 3001 and start `npm run cron:sms-forms`. The poller calls `/api/cron/sms-form-reminders` every minute. Production scheduling is intentionally not configured in this dev milestone.
+
+## SMS campaign test mode
+
+By default, SMS campaigns include only customers with active marketing consent matching the selected phone. For an isolated database containing synthetic test contacts, set `SMS_CAMPAIGN_TEST_MODE=true` in the server environment to make the segments UI offer an explicit opt-in to include customers without active consent. The campaign records that test-mode choice in its filters, and both campaign and manual sends re-check the server flag before sending. Consent timestamps in customer records are never changed by this mode. Keep the flag off for real customer data.

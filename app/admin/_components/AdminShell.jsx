@@ -41,8 +41,9 @@ const navGroups = [
 	},
 ]
 
-export default function AdminShell({ children, role }) {
+export default function AdminShell({ children, role, databaseTarget }) {
 	const isSuperadmin = role === 'SUPERADMIN'
+	const isProductionDatabase = databaseTarget === 'production'
 	return (
 		<div className='min-h-screen text-[#132c43]'>
 			<aside className='fixed inset-y-0 left-0 hidden w-64 border-r border-white/10 bg-[#132c43] px-4 py-5 text-white lg:block'>
@@ -66,6 +67,11 @@ export default function AdminShell({ children, role }) {
 					<PlatformModuleNav compact isSuperadmin={isSuperadmin} />
 				</header>
 				<main className='mx-auto max-w-7xl px-4 pb-28 pt-6 text-[#132c43] lg:px-8 lg:pb-6'>
+					<div className={`mb-5 rounded-xl border px-4 py-3 text-sm font-bold ${isProductionDatabase ? 'border-red-300 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`} role='status'>
+						{isProductionDatabase
+							? 'Baza produkcyjna — zmiany w CRM i wysyłka SMS dotyczą rzeczywistych danych.'
+							: 'Baza testowa — możesz bezpiecznie sprawdzać zmiany.'}
+					</div>
 					{children}
 				</main>
 				<AdminMobileMenu groups={navGroups} />

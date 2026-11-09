@@ -5,5 +5,6 @@ import { readPlatformSession } from '@/lib/platform-auth'
 export default async function AdminLayout({ children }) {
 	const session = await readPlatformSession()
 	if (!session) redirect('/login')
-	return <AdminShell role={session.role}>{children}</AdminShell>
+	const databaseTarget = process.env.OPONEXIS_DB_TARGET || (process.env.NODE_ENV === 'production' ? 'production' : 'development')
+	return <AdminShell role={session.role} databaseTarget={databaseTarget}>{children}</AdminShell>
 }

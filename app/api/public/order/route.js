@@ -1,4 +1,6 @@
 import { db } from '@/lib/prisma'
+import { attachCustomerToWorkOrder } from '@/lib/customer'
+import { markSmsCampaignBookedFromWorkOrder } from '@/lib/sms/smsCampaignAttribution'
 import { NextResponse } from 'next/server'
 
 export async function POST(req) {
@@ -47,7 +49,7 @@ export async function POST(req) {
 			},
 		})
 
-		const workOrder = await db.workOrder.create({
+		const createdWorkOrder = await db.workOrder.create({
 			data: {
 				leadId: lead.id,
 				name,
@@ -63,6 +65,12 @@ export async function POST(req) {
 				visitDate: visitDate ? new Date(visitDate) : null,
 				visitTime: visitTime || null,
 			},
+		})
+		const workOrder = await attachCustomerToWorkOrder(createdWorkOrder)
+		await markSmsCampaignBookedFromWorkOrder({
+			phone: workOrder.phone,
+			customerId: workOrder.customerId,
+			workOrderId: workOrder.id,
 		})
 
 		return NextResponse.json({

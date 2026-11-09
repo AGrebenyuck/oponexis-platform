@@ -17,9 +17,14 @@ function formatMoney(value) {
 	return `${Math.round(Number(value) || 0).toLocaleString('pl-PL')} zł`
 }
 
-export default function SegmentsAudience({ rows, filters }) {
+export default function SegmentsAudience({ rows, filters, testModeEnabled = false }) {
 	const router = useRouter()
-	const [selected, setSelected] = useState(() => new Set(rows.map(item => item.id)))
+	const [selected, setSelected] = useState(
+		() => new Set(rows.filter(item => item.phone && item.marketingSmsAccepted).map(item => item.id))
+	)
+	const [includeWithoutConsent, setIncludeWithoutConsent] = useState(false)
+	const [manualPhonesText, setManualPhonesText] = useState('')
+	const [manualConsentConfirmed, setManualConsentConfirmed] = useState(false)
 	const [campaignOpen, setCampaignOpen] = useState(false)
 	const [creating, setCreating] = useState(false)
 	const [error, setError] = useState('')
@@ -32,8 +37,28 @@ export default function SegmentsAudience({ rows, filters }) {
 	})
 
 	const selectedRows = useMemo(
-		() => rows.filter(item => selected.has(item.id) && item.phone),
-		[rows, selected]
+		() =>
+			rows.filter(
+				item =>
+					selected.has(item.id) &&
+					item.phone &&
+					(item.marketingSmsAccepted || includeWithoutConsent)
+			),
+		[rows, selected, includeWithoutConsent]
+	)
+	const eligibleIds = useMemo(
+		() =>
+			new Set(
+				rows
+					.filter(item => item.phone && (item.marketingSmsAccepted || includeWithoutConsent))
+					.map(item => item.id)
+			),
+		[rows, includeWithoutConsent]
+	)
+	const withoutConsentCount = useMemo(() => rows.filter(item => item.phone && !item.marketingSmsAccepted).length, [rows])
+	const manualPhones = useMemo(
+		() => Array.from(new Set(manualPhonesText.split(/\r?\n/).map(phone => phone.trim()).filter(Boolean))),
+		[manualPhonesText]
 	)
 
 	function toggle(id) {
@@ -46,7 +71,7 @@ export default function SegmentsAudience({ rows, filters }) {
 	}
 
 	function toggleAll() {
-		setSelected(current => (current.size === rows.length ? new Set() : new Set(rows.map(item => item.id))))
+		setSelected(current => (current.size === eligibleIds.size ? new Set() : new Set(eligibleIds)))
 	}
 
 	async function createCampaign() {
@@ -59,6 +84,9 @@ export default function SegmentsAudience({ rows, filters }) {
 				body: JSON.stringify({
 					...form,
 					filters: { ...filters, source: 'segments' },
+					allowWithoutMarketingConsent: includeWithoutConsent,
+					manualPhones,
+					manualConsentConfirmed,
 					recipients: selectedRows.map(row => ({
 						customerId: row.id,
 						name: row.name,
@@ -91,6 +119,24 @@ export default function SegmentsAudience({ rows, filters }) {
 							Zaznacz klientów w tabeli i utwórz kampanię SMS bez wychodzenia z
 							segmentów.
 						</p>
+						{withoutConsentCount ? (
+							<p className='mt-2 text-xs font-semibold text-amber-800'>
+								{withoutConsentCount} klientów z numerem nie ma aktywnej zgody marketingowej SMS.
+							</p>
+						) : null}
+						<label className={`mt-2 flex items-start gap-2 text-xs font-semibold ${testModeEnabled ? 'text-amber-900' : 'text-[#7b8fa1]'}`}>
+							<input
+								type='checkbox'
+								checked={includeWithoutConsent}
+								disabled={!testModeEnabled || withoutConsentCount === 0}
+								onChange={event => setIncludeWithoutConsent(event.target.checked)}
+								className='mt-0.5 h-4 w-4 accent-[#fd6d02]'
+							/>
+							<span>
+									Dołącz klientów bez aktywnej zgody SMS — wyłącznie testowa baza.
+								{!testModeEnabled ? ' Tryb testowy jest wyłączony na tym serwerze.' : ''}
+							</span>
+						</label>
 					</div>
 					<div className='flex flex-wrap items-center gap-2'>
 						<span className='text-sm font-bold text-[#132c43]'>
@@ -112,7 +158,7 @@ export default function SegmentsAudience({ rows, filters }) {
 					<label className='flex items-center gap-3 text-sm font-bold text-[#132c43]'>
 						<input
 							type='checkbox'
-							checked={rows.length > 0 && selected.size === rows.length}
+										checked={eligibleIds.size > 0 && selectedRows.length === eligibleIds.size}
 							onChange={toggleAll}
 							className='h-4 w-4 accent-[#fd6d02]'
 						/>
@@ -138,11 +184,16 @@ export default function SegmentsAudience({ rows, filters }) {
 								type='checkbox'
 								checked={selected.has(row.id)}
 								onChange={() => toggle(row.id)}
+								disabled={!row.phone || (!row.marketingSmsAccepted && !includeWithoutConsent)}
+								aria-label={row.marketingSmsAccepted ? 'Wybierz klienta' : 'Brak aktywnej zgody SMS'}
 								className='mt-1 h-4 w-4 accent-[#fd6d02]'
 							/>
 							<a href={`/admin/customers/${row.id}`} className='min-w-0 no-underline'>
 								<p className='font-bold text-[#132c43]'>{row.name}</p>
 								<p className='text-[#5f7487]'>{row.phone}</p>
+								<p className={`text-xs font-semibold ${row.marketingSmsAccepted ? 'text-emerald-700' : 'text-amber-700'}`}>
+									{row.marketingSmsAccepted ? 'Zgoda SMS aktywna' : 'Brak aktywnej zgody SMS'}
+								</p>
 							</a>
 							<div className='col-span-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-[#edf2f6] pt-2 text-xs md:col-span-1 md:contents md:border-0 md:p-0 md:text-sm'>
 								<p className='text-[#314a60] before:mr-1 before:font-bold before:text-[#8aa0b2] before:content-["Źródło:"] md:before:hidden'>{row.source}</p>
@@ -167,7 +218,12 @@ export default function SegmentsAudience({ rows, filters }) {
 						<div className='mb-4 flex items-start justify-between gap-3 border-b border-[#d9e4ee] pb-3'>
 							<div>
 								<h2 className='text-xl font-black text-[#132c43]'>Nowa kampania SMS</h2>
-								<p className='text-sm text-[#5f7487]'>{selectedRows.length} odbiorców</p>
+				<p className='text-sm text-[#5f7487]'>{selectedRows.length + manualPhones.length} odbiorców</p>
+								<p className='mt-1 text-xs font-semibold text-amber-800'>
+									{includeWithoutConsent
+									? 'Tryb testowy: wybrane osoby mogą nie mieć aktywnej zgody SMS.'
+									: 'Do kampanii trafiają osoby z aktywną zgodą SMS.'}
+								</p>
 							</div>
 							<Button type='button' variant='secondary' onClick={() => setCampaignOpen(false)}>
 								Zamknij
@@ -198,6 +254,33 @@ export default function SegmentsAudience({ rows, filters }) {
 									Zmienne: {'{name}'}, {'{firstName}'}, {'{phone}'}
 								</span>
 							</label>
+							<label className='block space-y-2 text-sm font-bold text-[#132c43]'>
+								<span>Dodatkowe numery</span>
+								<textarea
+									value={manualPhonesText}
+									onChange={event => {
+										setManualPhonesText(event.target.value)
+										setManualConsentConfirmed(false)
+									}}
+									rows={3}
+									placeholder={'+48 600 000 001\n+48 600 000 002'}
+									className='opx-input resize-y'
+								/>
+								<span className='block text-xs font-normal text-[#5f7487]'>
+									Po jednym numerze w wierszu. Nieznane numery będą zapisane tylko w kampanii, bez tworzenia kart klientów.
+								</span>
+							</label>
+							{manualPhones.length ? (
+								<label className='flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900'>
+									<input
+										type='checkbox'
+										checked={manualConsentConfirmed}
+										onChange={event => setManualConsentConfirmed(event.target.checked)}
+										className='mt-0.5 h-4 w-4 accent-[#fd6d02]'
+									/>
+									<span>Potwierdzam, że ręcznie wpisane numery są przeznaczone do tej kampanii (uzgodniony kontakt lub numery testowe).</span>
+								</label>
+							) : null}
 							<div className='grid gap-3 sm:grid-cols-2'>
 								<label className='block space-y-2 text-sm font-bold text-[#132c43]'>
 									<span>Opóźnienie między SMS</span>
@@ -229,7 +312,12 @@ export default function SegmentsAudience({ rows, filters }) {
 							</div>
 							{error ? <p className='text-sm font-bold text-red-600'>{error}</p> : null}
 							<div className='flex flex-wrap gap-2'>
-								<Button type='button' onClick={createCampaign} loading={creating}>
+								<Button
+									type='button'
+									onClick={createCampaign}
+									loading={creating}
+									disabled={manualPhones.length > 0 && !manualConsentConfirmed}
+								>
 									Utwórz kampanię
 								</Button>
 								<Button type='button' variant='secondary' onClick={() => setCampaignOpen(false)}>
