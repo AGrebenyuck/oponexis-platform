@@ -233,6 +233,7 @@ export default function SmsCampaignPage() {
 	const [savingSchedule, setSavingSchedule] = useState(false)
 	const [deleting, setDeleting] = useState(false)
 	const [error, setError] = useState('')
+	const [notice, setNotice] = useState('')
 	const [scheduleValue, setScheduleValue] = useState('')
 	const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
 	const [savingRecipientId, setSavingRecipientId] = useState('')
@@ -247,6 +248,9 @@ export default function SmsCampaignPage() {
 	const [smsMessage, setSmsMessage] = useState('')
 	const [sendingSingleSms, setSendingSingleSms] = useState(false)
 	const statusSyncInFlight = useRef(false)
+	const hasPendingProviderStatus = (campaign?.recipients || []).some(item =>
+		['QUEUED', 'PROCESSED', 'SENT'].includes(item.status) && item.providerMessageId
+	)
 
 	useEffect(() => {
 		if (!id) return
@@ -255,7 +259,7 @@ export default function SmsCampaignPage() {
 	}, [id])
 
 	useEffect(() => {
-		if (!id || !campaign || !isLiveStatus(campaign.status)) return
+		if (!id || !campaign || (!isLiveStatus(campaign.status) && !hasPendingProviderStatus)) return
 		let active = true
 		let progressTimer
 		let statusTimer
@@ -266,7 +270,9 @@ export default function SmsCampaignPage() {
 		const refreshStatuses = async () => {
 			const staleProcessing = campaign.status === 'PROCESSING' && campaign.startedAt &&
 				Date.now() - new Date(campaign.startedAt).getTime() > 120_000
-			if (campaign.status === 'RUNNING' || staleProcessing) await syncStatuses({ silent: true })
+			if (isLiveStatus(campaign.status) || hasPendingProviderStatus || staleProcessing) {
+				await syncStatuses({ silent: true })
+			}
 			if (active) statusTimer = window.setTimeout(refreshStatuses, 20000)
 		}
 		progressTimer = window.setTimeout(refreshProgress, 2000)
@@ -277,7 +283,7 @@ export default function SmsCampaignPage() {
 			window.clearTimeout(statusTimer)
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [id, campaign?.status])
+	}, [id, campaign?.status, hasPendingProviderStatus])
 
 	useEffect(() => {
 		if (!historyRecipient) return
@@ -308,17 +314,14 @@ export default function SmsCampaignPage() {
 			(recipient.contactEvents || []).some(event =>
 				event.type === type && (event.campaignId === campaign?.id || event.recipientId === recipient.id)
 			)
-		const sent = recipients.filter(item =>
-			['QUEUED', 'PROCESSED', 'SENT', 'DELIVERED', 'BOOKED', 'INTERESTED', 'CALL_BACK', 'NO_ANSWER', 'DECLINED'].includes(
-				item.status
-			)
-		).length
+		const sent = recipients.filter(item => ['SENT'].includes(item.status)).length
 
 		return {
 			total: recipients.length,
 			processed: recipients.filter(item => item.status !== 'PENDING').length,
 			pending: count('PENDING'),
 			sent,
+			queued: count('QUEUED') + count('PROCESSED'),
 			delivered: count('DELIVERED'),
 			failed: count('FAILED'),
 			booked: count('BOOKED'),
@@ -394,6 +397,28 @@ export default function SmsCampaignPage() {
 			await syncStatuses({ silent: true })
 		} catch (startError) {
 			setError(startError.message)
+		} finally {
+			setStarting(false)
+		}
+	}
+
+	async function retryFailed() {
+		setStarting(true)
+		setError('')
+		setNotice('')
+		try {
+			const res = await fetch(`/api/admin/sms-campaigns/${id}/retry-failed`, { method: 'POST' })
+			const json = await res.json()
+			if (!res.ok || !json.success) throw new Error(json.error || 'Nie ponowiono błędnych wiadomości')
+			setCampaign(json.data || null)
+			setLastUpdatedAt(new Date())
+			setNotice(
+				json.retried
+					? `Ponowiono ${json.retried} nieudanych wiadomości.${json.skipped ? ` Pominięto: ${json.skipped} — brak potwierdzonego błędu w Companion.` : ''}`
+					: 'Nie znaleziono wiadomości z potwierdzonym błędem w Companion. Oczekujące i dostarczone SMS-y nie zostały ponowione.'
+			)
+		} catch (retryError) {
+			setError(retryError.message)
 		} finally {
 			setStarting(false)
 		}
@@ -621,20 +646,23 @@ export default function SmsCampaignPage() {
 					</Button>
 					<Button
 						type='button'
-						onClick={start}
+						onClick={stats.failed ? retryFailed : start}
 						loading={starting}
 						disabled={
-							starting || campaign.status === 'RUNNING' ||
+							starting || (campaign.status === 'RUNNING' && stats.failed === 0) ||
 							(campaign.status === 'PROCESSING' && !processingIsStale) ||
-							!campaign.recipients.some(item =>
-								['PENDING', 'FAILED'].includes(item.status)
-							)
+							(stats.failed === 0 && !campaign.recipients.some(item => item.status === 'PENDING'))
 						}
 					>
-						{['PAUSED', 'FAILED'].includes(campaign.status) ? 'Wznów / ponów błędne' : 'Start wysyłki'}
+						{stats.failed ? `Ponów błędne (${stats.failed})` : ['PAUSED', 'FAILED'].includes(campaign.status) ? 'Wznów wysyłkę' : 'Start wysyłki'}
 					</Button>
 				</div>
 			</div>
+			{notice ? (
+				<div className='rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900'>
+					{notice}
+				</div>
+			) : null}
 
 			{campaign.filters?.smsCampaignTestMode ? (
 				<div className='rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900'>
@@ -665,6 +693,11 @@ export default function SmsCampaignPage() {
 				>
 					<div className='h-full rounded-full bg-[#fd6d02] transition-all' style={{ width: `${progressPercent}%` }} />
 				</div>
+				{stats.queued ? (
+					<p className='mt-3 rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900'>
+						{stats.queued} SMS czekają na potwierdzenie z telefonu Companion. „Odśwież statusy” pobiera ich stan, ale niczego nie wysyła ponownie.
+					</p>
+				) : null}
 				{campaign.status === 'PAUSED' ? (
 					<p className='mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900'>
 						Wysyłka została wstrzymana po błędach lub problemie z zapisem wyniku. Sprawdź przyczyny przy odbiorcach, zweryfikuj statusy wiadomości w kolejce i dopiero potem wybierz „Wznów / ponów błędne”.
@@ -675,7 +708,8 @@ export default function SmsCampaignPage() {
 			<div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
 				{[
 					['Odbiorcy', stats.total],
-					['Wysłane/kolejka', stats.sent],
+					['Wysłano', stats.sent],
+					['W kolejce', stats.queued],
 					['Dostarczone', stats.delivered],
 					['Odpowiedzi SMS', stats.smsReplies],
 					['Rozmowy z wynikiem', stats.callOutcomes],
