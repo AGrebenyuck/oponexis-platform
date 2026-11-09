@@ -162,10 +162,13 @@ export async function POST(request) {
 		},
 		raw: { provider: 'companion', installationId: device.installationId, source: dispatch.source },
 	})
-	const nextDispatch = await db.mobileSmsDispatch.findFirst({
-		where: { deviceId: device.id, status: 'QUEUED' },
-		orderBy: { createdAt: 'asc' },
-	})
-	if (nextDispatch) await publishMobileSmsDispatch(nextDispatch)
+	const queueLimitReached = status === 'FAILED' && /Przekroczono limit wysyłania SMS/i.test(detail || '')
+	if (!queueLimitReached) {
+		const nextDispatch = await db.mobileSmsDispatch.findFirst({
+			where: { deviceId: device.id, status: 'QUEUED' },
+			orderBy: { createdAt: 'asc' },
+		})
+		if (nextDispatch) await publishMobileSmsDispatch(nextDispatch)
+	}
 	return NextResponse.json({ result: 'ok', status: dispatch.status }, { headers: responseHeaders() })
 }
